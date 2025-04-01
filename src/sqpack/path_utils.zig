@@ -5,6 +5,13 @@ const CategoryID = @import("category_id.zig").CategoryID;
 const FileType = @import("file_type.zig").FileType;
 const Platform = @import("../common/platform.zig").Platform;
 
+pub const ParsedGamePath = struct {
+    category_id: CategoryID,
+    repo_id: u8,
+    index1_hash: u64,
+    index2_hash: u32,
+};
+
 pub const PathUtils = struct {
     const BaseRepoId: u8 = 0;
     const BaseRepoName = "ffxiv";
@@ -48,6 +55,39 @@ pub const PathUtils = struct {
             }
             return BaseRepoId;
         }
+    }
+
+    pub fn parseGamePath(path: []const u8) !ParsedGamePath {
+        // Index 2 hash is easy
+        const index2_hash = std.hash.Crc32.hash(path);
+
+        // Split the path into parts
+        var path_parts = std.mem.splitAny(u8, path, "/");
+
+        // Get the category ID
+        const category_name = path_parts.next() orelse return error.MalformedPath;
+        const category_id = CategoryID.fromString(category_name) orelse return error.InvalidCategory;
+
+        // Get the repository ID
+        const repo_name = path_parts.next() orelse return error.MalformedPath;
+        const repo_id = try repoNameToId(repo_name, true);
+
+        // Split what we need for index1
+        const last_path_part = std.mem.lastIndexOf(u8, path, "/") orelse return error.InvalidPath;
+        const file_only_str = path[last_path_part + 1 ..];
+        const file_only_hash = std.hash.Crc32.hash(file_only_str);
+        const directory_str = path[0 .. last_path_part + 1];
+        const directory_hash = std.hash.Crc32.hash(directory_str);
+
+        // Pack index1 hash
+        const index1_hash: u64 = (@as(u64, @intCast(directory_hash)) << 32) | file_only_hash;
+
+        return ParsedGamePath{
+            .category_id = category_id,
+            .repo_id = repo_id,
+            .index1_hash = index1_hash,
+            .index2_hash = index2_hash,
+        };
     }
 };
 
@@ -126,6 +166,53 @@ test "repoNameToId" {
     {
         const expected: u8 = 0;
         const result = try PathUtils.repoNameToId("beep", true);
+        try std.testing.expectEqual(expected, result);
+    }
+}
+
+test "calculateGamePath" {
+    {
+        const expected = ParsedGamePath{
+            .category_id = CategoryID.chara,
+            .repo_id = 6,
+            .index1_hash = 0xadb96341ab3431f9,
+            .index2_hash = 0x412fbc68,
+        };
+        const result = try PathUtils.parseGamePath("chara/ex6/beep.dat");
+        try std.testing.expectEqual(expected, result);
+    }
+
+    {
+        const expected = ParsedGamePath{
+            .category_id = CategoryID.chara,
+            .repo_id = 0,
+            .index1_hash = 0x9538ab3cab3431f9,
+            .index2_hash = 0xcd35ddff,
+        };
+        const result = try PathUtils.parseGamePath("chara/beep.dat");
+        try std.testing.expectEqual(expected, result);
+    }
+
+    {
+        const expected = error.MalformedPath;
+        const result = PathUtils.parseGamePath("chara");
+        try std.testing.expectError(expected, result);
+    }
+
+    {
+        const expected = error.InvalidCategory;
+        const result = PathUtils.parseGamePath("beep/ex6/test.dat");
+        try std.testing.expectError(expected, result);
+    }
+
+    {
+        const expected = ParsedGamePath{
+            .category_id = CategoryID.chara,
+            .repo_id = 6,
+            .index1_hash = 0x5220665400000000,
+            .index2_hash = 0x52206654,
+        };
+        const result = try PathUtils.parseGamePath("chara/ex6/folder/");
         try std.testing.expectEqual(expected, result);
     }
 }
