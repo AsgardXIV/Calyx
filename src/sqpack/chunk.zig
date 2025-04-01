@@ -13,6 +13,8 @@ const PathUtils = path_utils.PathUtils;
 const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 
+const DatFile = @import("virtual_file.zig").DatFile;
+
 pub const Chunk = struct {
     const Self = @This();
 
@@ -21,16 +23,20 @@ pub const Chunk = struct {
     chunk_id: u8,
     index1: ?*index.Index(index.SqPackIndex1TableEntry),
     index2: ?*index.Index(index.SqPackIndex2TableEntry),
+    dat_files: std.AutoArrayHashMapUnmanaged(u8, *DatFile),
 
     pub fn init(allocator: Allocator, category: *Category, chunk_id: u8) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
-        self.allocator = allocator;
-        self.category = category;
-        self.chunk_id = chunk_id;
-        self.index1 = null;
-        self.index2 = null;
+        self.* = .{
+            .allocator = allocator,
+            .category = category,
+            .chunk_id = chunk_id,
+            .index1 = null,
+            .index2 = null,
+            .dat_files = .{},
+        };
 
         try self.setupIndexes();
 
@@ -38,6 +44,7 @@ pub const Chunk = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        self.cleanupDatFiles();
         self.cleanupIndexes();
         self.allocator.destroy(self);
     }
@@ -56,6 +63,34 @@ pub const Chunk = struct {
         }
 
         return null;
+    }
+
+    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
+        const dat_file = try self.getDatFile(lookup.data_file_id);
+        const file_offset = lookup.data_file_offset;
+
+        try dat_file.load_file(file_offset);
+    }
+
+    fn getDatFile(self: *Self, file_id: u8) !*DatFile {
+        if (self.dat_files.get(file_id)) |dat_file| {
+            return dat_file;
+        }
+
+        const dat_file = try DatFile.init(self.allocator, self, file_id);
+        errdefer dat_file.deinit();
+
+        try self.dat_files.put(self.allocator, file_id, dat_file);
+
+        return dat_file;
+    }
+
+    fn cleanupDatFiles(self: *Self) void {
+        for (self.dat_files.values()) |dat_file| {
+            dat_file.deinit();
+        }
+        self.dat_files.deinit(self.allocator);
+        self.dat_files = .{};
     }
 
     fn setupIndexes(self: *Self) !void {

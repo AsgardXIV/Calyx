@@ -13,5 +13,6 @@ pub fn main() !void {
     const lookup = game_data.pack.lookupFile(parsed_path);
     if (lookup) |result| {
         std.log.info("Lookup result: {x}", .{result.data_file_offset});
+        _ = try game_data.pack.loadFile(result);
     }
 }

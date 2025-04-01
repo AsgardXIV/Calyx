@@ -55,6 +55,12 @@ pub const Repository = struct {
         return null;
     }
 
+    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
+        if (self.categories.get(lookup.category_id)) |category| {
+            try category.loadFile(lookup);
+        }
+    }
+
     fn discoverChunks(self: *Self) !void {
         var folder = try std.fs.openDirAbsolute(self.repo_path, .{ .iterate = true, .no_follow = true });
         defer folder.close();

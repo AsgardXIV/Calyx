@@ -54,6 +54,12 @@ pub const Category = struct {
         return null;
     }
 
+    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
+        if (self.chunks.get(lookup.chunk_id)) |chunk| {
+            try chunk.loadFile(lookup);
+        }
+    }
+
     fn cleanupChunks(self: *Self) void {
         for (self.chunks.values()) |chunk| {
             chunk.deinit();

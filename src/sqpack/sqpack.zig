@@ -76,6 +76,12 @@ pub const SqPack = struct {
         return null;
     }
 
+    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
+        if (self.repos.get(lookup.repo_id)) |repo| {
+            try repo.loadFile(lookup);
+        }
+    }
+
     fn cleanupRepos(self: *Self) void {
         for (self.repos.values()) |repo| {
             repo.deinit();
