@@ -52,19 +52,22 @@ pub const PathUtils = struct {
         allocator: Allocator,
         path: ParsedSqPackFileName,
     ) ![]const u8 {
+
+        // First we determine if there is a file index and we build the postfix for it
         var buf: [4]u8 = undefined;
-        const file_id_str = if (path.file_idx) |fid|
+        const file_idx_str = if (path.file_idx) |fid|
             try std.fmt.bufPrint(&buf, "{d}", .{fid})
         else
             "";
 
+        // Then we just format the string
         const formatted = try std.fmt.allocPrint(allocator, "{x:0>2}{x:0>2}{x:0>2}.{s}.{s}{s}", .{
             @intFromEnum(path.category_id),
             path.repo_id,
             path.chunk_id,
             path.platform.toString(),
             path.file_type.toString(),
-            file_id_str,
+            file_idx_str,
         });
 
         return formatted;
@@ -73,9 +76,9 @@ pub const PathUtils = struct {
     pub fn parseSqPackFileName(file_name: []const u8) !ParsedSqPackFileName {
         var parts = std.mem.splitSequence(u8, file_name, ".");
 
-        const bundle_str = parts.next() orelse return error.InvalidSqPackFilename;
-        const platform_str = parts.next() orelse return error.InvalidSqPackFilename;
-        const extension = parts.next() orelse return error.InvalidSqPackFilename;
+        const bundle_str = parts.next() orelse return error.InvalidSqPackFilename; // Bundle is the first section and contains category, repo, and chunk
+        const platform_str = parts.next() orelse return error.InvalidSqPackFilename; // Platform is the second section, it's a string which we parse in Platform
+        const extension = parts.next() orelse return error.InvalidSqPackFilename; // Extension is the third section, which is a string. It's parsed as a FileType but has special handling for numbered dat files
 
         if (bundle_str.len != 6) {
             return error.InvalidSqPackFilename;
@@ -85,16 +88,21 @@ pub const PathUtils = struct {
         const repo_str = bundle_str[2..4];
         const chunk_str = bundle_str[4..6];
 
+        // Resolve the category ID
         const category_id_int = try std.fmt.parseInt(u8, category_str, 16);
         const category_id: CategoryID = @enumFromInt(category_id_int);
 
+        // Resolve the repository ID
         const repo_id = try std.fmt.parseInt(u8, repo_str, 16);
+
+        // Chunk is just a number
         const chunk = try std.fmt.parseInt(u8, chunk_str, 16);
 
+        // Resolve the platform
         const platform = Platform.fromString(platform_str) orelse return error.InvalidPlatform;
 
+        // Resolve the file type, with special handling for dat files
         var file_index: ?u8 = null;
-
         const file_type: ?FileType = FileType.fromString(extension) orelse blk: {
             if (std.mem.startsWith(u8, extension, FileType.dat.toString())) {
                 file_index = try std.fmt.parseInt(u8, extension[3..], 10);
@@ -107,6 +115,7 @@ pub const PathUtils = struct {
             return error.InvalidFileType;
         }
 
+        // Return the parsed file name
         return ParsedSqPackFileName{
             .category_id = category_id,
             .repo_id = repo_id,
@@ -119,13 +128,18 @@ pub const PathUtils = struct {
 
     pub fn repoNameToId(repo_name: []const u8, fallback: bool) !u8 {
         if (std.mem.eql(u8, repo_name, BaseRepoName)) {
+            // Explicitly base repo
             return BaseRepoId;
         } else if (std.mem.startsWith(u8, repo_name, ExPackRepoPrefix)) {
+            // Expansion pack
             return try std.fmt.parseInt(u8, repo_name[2..], 10);
         } else {
             if (!fallback) {
+                // If not explicitly base repo and not expansion pack, and no base fallback, return error
                 return error.InvalidRepo;
             }
+
+            // If not explicitly base repo and not expansion pack, but fallback is allowed, return base repo ID
             return BaseRepoId;
         }
     }
@@ -166,6 +180,7 @@ pub const PathUtils = struct {
 
 test "buildSqPackFileName" {
     {
+        // Basic test without file index
         const expected = "040602.win32.index";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
@@ -181,6 +196,7 @@ test "buildSqPackFileName" {
     }
 
     {
+        // Another basic test without file index, but as an index2
         const expected = "040602.win32.index2";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
@@ -196,6 +212,7 @@ test "buildSqPackFileName" {
     }
 
     {
+        // Test with dat file index
         const expected = "030103.ps5.dat0";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
@@ -213,6 +230,7 @@ test "buildSqPackFileName" {
 
 test "parseSqPackFileName" {
     {
+        // Basic test without file index
         const expected = ParsedSqPackFileName{
             .category_id = CategoryID.chara,
             .repo_id = 6,
@@ -226,6 +244,7 @@ test "parseSqPackFileName" {
     }
 
     {
+        // Basic test with a file index
         const expected = ParsedSqPackFileName{
             .category_id = CategoryID.chara,
             .repo_id = 6,
@@ -239,12 +258,14 @@ test "parseSqPackFileName" {
     }
 
     {
+        // Bundle section is too short
         const result = PathUtils.parseSqPackFileName("04060.ps5.dat3");
         const expected = error.InvalidSqPackFilename;
         try std.testing.expectError(expected, result);
     }
 
     {
+        // Format is totally wrong
         const result = PathUtils.parseSqPackFileName("invalid");
         const expected = error.InvalidSqPackFilename;
         try std.testing.expectError(expected, result);
@@ -253,30 +274,35 @@ test "parseSqPackFileName" {
 
 test "repoNameToId" {
     {
+        // Resolve base repo name
         const expected = PathUtils.BaseRepoId;
         const result = try PathUtils.repoNameToId(PathUtils.BaseRepoName, false);
         try std.testing.expectEqual(expected, result);
     }
 
     {
+        // Resolve expansion pack repo name
         const expected: u8 = 1;
         const result = try PathUtils.repoNameToId("ex1", false);
         try std.testing.expectEqual(expected, result);
     }
 
     {
+        // Another expansion pack repo name
         const expected: u8 = 9;
         const result = try PathUtils.repoNameToId("ex9", false);
         try std.testing.expectEqual(expected, result);
     }
 
     {
+        // Invalid repo name, no fallback so error
         const expected = error.InvalidRepo;
         const result = PathUtils.repoNameToId("beep", false);
         try std.testing.expectError(expected, result);
     }
 
     {
+        // Invalid repo name, but fallback is allowed so base repo ID is returned
         const expected: u8 = 0;
         const result = try PathUtils.repoNameToId("beep", true);
         try std.testing.expectEqual(expected, result);
@@ -285,6 +311,7 @@ test "repoNameToId" {
 
 test "parseGamePath" {
     {
+        // Basic path with explicit repo ID
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
@@ -296,6 +323,8 @@ test "parseGamePath" {
     }
 
     {
+        // Basic path with implicit repo ID
+
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 0,
@@ -307,18 +336,21 @@ test "parseGamePath" {
     }
 
     {
+        // Invalid path, too short
         const expected = error.MalformedPath;
         const result = PathUtils.parseGamePath("chara");
         try std.testing.expectError(expected, result);
     }
 
     {
+        // Invalid category ID
         const expected = error.InvalidCategory;
         const result = PathUtils.parseGamePath("beep/ex6/test.dat");
         try std.testing.expectError(expected, result);
     }
 
     {
+        // Blank file name, technically allowed
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
