@@ -7,6 +7,8 @@ const path_utils = @import("path_utils.zig");
 const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 
+const Chunk = @import("chunk.zig").Chunk;
+
 const Allocator = std.mem.Allocator;
 
 pub const SqPackHeader = extern struct {
@@ -91,15 +93,17 @@ pub fn Index(comptime EntryType: type) type {
         const Self = @This();
 
         allocator: Allocator,
+        chunk: *Chunk,
         pack_header: SqPackHeader,
         index_header: SqPackIndexHeader,
         index_table: *IndexTable(EntryType),
 
-        pub fn init(allocator: Allocator, file: *const std.fs.File) !*Self {
+        pub fn init(allocator: Allocator, chunk: *Chunk, file: *const std.fs.File) !*Self {
             const self = try allocator.create(Self);
             errdefer allocator.destroy(self);
 
             self.allocator = allocator;
+            self.chunk = chunk;
 
             const reader = file.reader();
 
@@ -131,6 +135,8 @@ pub fn Index(comptime EntryType: type) type {
                 return FileLookupResult{
                     .data_file_id = entry.dataFileId(),
                     .data_file_offset = entry.dataFileOffset(),
+                    .repo_id = self.chunk.category.repository.repo_id,
+                    .chunk_id = self.chunk.chunk_id,
                 };
             }
 

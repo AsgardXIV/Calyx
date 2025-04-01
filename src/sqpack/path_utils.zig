@@ -24,6 +24,8 @@ pub const ParsedSqPackFileName = struct {
 pub const FileLookupResult = struct {
     data_file_id: u8,
     data_file_offset: u64,
+    repo_id: u8,
+    chunk_id: u8,
 };
 
 pub const PathUtils = struct {

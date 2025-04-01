@@ -2,9 +2,15 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const SqPack = @import("sqpack.zig").SqPack;
 const Chunk = @import("chunk.zig").Chunk;
-const PathUtils = @import("path_utils.zig").PathUtils;
+
 const FileType = @import("file_type.zig").FileType;
 const CategoryID = @import("category_id.zig").CategoryID;
+const Category = @import("category.zig").Category;
+
+const path_utils = @import("path_utils.zig");
+const PathUtils = path_utils.PathUtils;
+const ParsedGamePath = path_utils.ParsedGamePath;
+const FileLookupResult = path_utils.FileLookupResult;
 
 pub const Repository = struct {
     const Self = @This();
@@ -13,7 +19,7 @@ pub const Repository = struct {
     pack: *SqPack,
     repo_path: []const u8,
     repo_id: u8,
-    chunks: std.ArrayListUnmanaged(*Chunk),
+    categories: std.AutoArrayHashMapUnmanaged(CategoryID, *Category),
 
     pub fn init(allocator: std.mem.Allocator, pack: *SqPack, repo_path: []const u8, repo_id: u8) !*Self {
         const self = try allocator.create(Self);
@@ -27,7 +33,7 @@ pub const Repository = struct {
             .pack = pack,
             .repo_path = cloned_path,
             .repo_id = repo_id,
-            .chunks = .{},
+            .categories = .{},
         };
 
         try self.discoverChunks();
@@ -37,8 +43,16 @@ pub const Repository = struct {
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.repo_path);
-        self.cleanupChunks();
+        self.cleanupCategories();
         self.allocator.destroy(self);
+    }
+
+    pub fn lookupFile(self: *Self, path: ParsedGamePath) ?FileLookupResult {
+        if (self.categories.get(path.category_id)) |category| {
+            return category.lookupFile(path);
+        }
+
+        return null;
     }
 
     fn discoverChunks(self: *Self) !void {
@@ -48,7 +62,7 @@ pub const Repository = struct {
         var discovered_unique: std.AutoHashMapUnmanaged(struct { category_id: CategoryID, chunk_id: u8 }, void) = .{};
         defer discovered_unique.deinit(self.allocator);
 
-        errdefer self.cleanupChunks(); // Cleanup on error
+        errdefer self.cleanupCategories(); // Cleanup on error
 
         var walker = try folder.walk(self.allocator);
         defer walker.deinit();
@@ -72,27 +86,22 @@ pub const Repository = struct {
                 continue;
             }
 
-            // Add to the discovered unique list
-            try discovered_unique.put(self.allocator, .{
-                .category_id = sqpack_file.category_id,
-                .chunk_id = sqpack_file.chunk_id,
-            }, void{});
-        }
+            if (!self.categories.contains(sqpack_file.category_id)) {
+                const new_category = try Category.init(self.allocator, sqpack_file.category_id, self);
+                errdefer new_category.deinit();
+                try self.categories.put(self.allocator, sqpack_file.category_id, new_category);
+            }
 
-        // Now we can create the unique chunks
-        var unique_it = discovered_unique.keyIterator();
-        while (unique_it.next()) |entry| {
-            // Create the chunk
-            const chunk = try Chunk.init(self.allocator, self, entry.category_id, entry.chunk_id);
-            try self.chunks.append(self.allocator, chunk);
+            try self.categories.get(sqpack_file.category_id).?.initChunk(sqpack_file.chunk_id);
         }
     }
 
-    fn cleanupChunks(self: *Self) void {
-        for (self.chunks.items) |chunk| {
-            chunk.deinit();
+    fn cleanupCategories(self: *Self) void {
+        for (self.categories.values()) |category| {
+            category.deinit();
         }
-        self.chunks.deinit(self.allocator);
-        self.chunks = .{};
+
+        self.categories.deinit(self.allocator);
+        self.categories = .{};
     }
 };

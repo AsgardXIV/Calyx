@@ -4,16 +4,22 @@ const Allocator = std.mem.Allocator;
 
 const GameData = @import("../game_data.zig").GameData;
 const Repository = @import("repository.zig").Repository;
-const PathUtils = @import("path_utils.zig").PathUtils;
+
+const path_utils = @import("path_utils.zig");
+const ParsedGamePath = path_utils.ParsedGamePath;
+const FileLookupResult = path_utils.FileLookupResult;
+const PathUtils = path_utils.PathUtils;
 
 pub const SqPack = struct {
+    const Self = @This();
+
     allocator: Allocator,
     game_data: *GameData,
     repos_path: []const u8,
     repos: std.AutoArrayHashMapUnmanaged(u8, *Repository),
 
-    pub fn init(allocator: Allocator, game_data: *GameData, repos_path: []const u8) !*SqPack {
-        const self = try allocator.create(SqPack);
+    pub fn init(allocator: Allocator, game_data: *GameData, repos_path: []const u8) !*Self {
+        const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
         const cloned_path = try allocator.dupe(u8, repos_path);
@@ -29,13 +35,13 @@ pub const SqPack = struct {
         return self;
     }
 
-    pub fn deinit(self: *SqPack) void {
+    pub fn deinit(self: *Self) void {
         self.cleanupRepos();
         self.allocator.free(self.repos_path);
         self.allocator.destroy(self);
     }
 
-    pub fn scanForRepos(self: *SqPack) !void {
+    pub fn scanForRepos(self: *Self) !void {
         self.cleanupRepos();
 
         var folder = std.fs.openDirAbsolute(self.repos_path, .{ .iterate = true, .no_follow = true }) catch {
@@ -62,7 +68,15 @@ pub const SqPack = struct {
         }
     }
 
-    fn cleanupRepos(self: *SqPack) void {
+    pub fn lookupFile(self: *Self, path: ParsedGamePath) ?FileLookupResult {
+        if (self.repos.get(path.repo_id)) |repo| {
+            return repo.lookupFile(path);
+        }
+
+        return null;
+    }
+
+    fn cleanupRepos(self: *Self) void {
         for (self.repos.values()) |repo| {
             repo.deinit();
         }

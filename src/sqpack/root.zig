@@ -1,3 +1,4 @@
+pub usingnamespace @import("category.zig");
 pub usingnamespace @import("category_id.zig");
 pub usingnamespace @import("chunk.zig");
 pub usingnamespace @import("file_type.zig");

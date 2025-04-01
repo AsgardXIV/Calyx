@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Repository = @import("repository.zig").Repository;
+const Category = @import("category.zig").Category;
 const CategoryID = @import("category_id.zig").CategoryID;
 const index = @import("index.zig");
 
@@ -16,19 +16,17 @@ pub const Chunk = struct {
     const Self = @This();
 
     allocator: Allocator,
-    repository: *Repository,
-    category_id: CategoryID,
+    category: *Category,
     chunk_id: u8,
     index1: ?*index.Index(index.SqPackIndex1TableEntry),
     index2: ?*index.Index(index.SqPackIndex2TableEntry),
 
-    pub fn init(allocator: Allocator, repository: *Repository, category_id: CategoryID, chunk_id: u8) !*Self {
+    pub fn init(allocator: Allocator, category: *Category, chunk_id: u8) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
         self.allocator = allocator;
-        self.repository = repository;
-        self.category_id = category_id;
+        self.category = category;
         self.chunk_id = chunk_id;
         self.index1 = null;
         self.index2 = null;
@@ -66,22 +64,22 @@ pub const Chunk = struct {
 
     fn setupIndex(self: *Self, comptime T: type) !*index.Index(T) {
         const index_filename = try PathUtils.buildSqPackFileNameTyped(self.allocator, .{
-            .category_id = self.category_id,
             .chunk_id = self.chunk_id,
             .file_type = T.IndexFileType,
-            .platform = self.repository.pack.game_data.platform,
-            .repo_id = self.repository.repo_id,
+            .category_id = self.category.category_id,
+            .platform = self.category.repository.pack.game_data.platform,
+            .repo_id = self.category.repository.repo_id,
             .file_idx = null,
         });
         defer self.allocator.free(index_filename);
 
-        const index_path = try std.fs.path.join(self.allocator, &.{ self.repository.repo_path, index_filename });
+        const index_path = try std.fs.path.join(self.allocator, &.{ self.category.repository.repo_path, index_filename });
         defer self.allocator.free(index_path);
 
         const index_file = std.fs.openFileAbsolute(index_path, .{ .mode = .read_only }) catch null;
         defer if (index_file) |file| file.close();
         if (index_file) |file| {
-            return try index.Index(T).init(self.allocator, &file);
+            return try index.Index(T).init(self.allocator, self, &file);
         }
 
         return error.FailedToOpenIndexFile;
