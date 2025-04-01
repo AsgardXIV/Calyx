@@ -12,10 +12,11 @@ pub const GameData = struct {
 
     allocator: Allocator,
     install_path: []const u8,
+    platform: common.Platform,
     pack: *sqpack.SqPack,
     version: common.GameVersion,
 
-    pub fn init(allocator: Allocator, install_path: []const u8) !*Self {
+    pub fn init(allocator: Allocator, install_path: []const u8, platform: common.Platform) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
@@ -35,6 +36,7 @@ pub const GameData = struct {
         self.* = Self{
             .allocator = allocator,
             .install_path = cloned_path,
+            .platform = platform,
             .pack = pack,
             .version = game_version,
         };
