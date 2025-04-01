@@ -26,6 +26,10 @@ pub const PathUtils = struct {
     const BaseRepoName = "ffxiv";
     const ExPackRepoPrefix = "ex";
 
+    pub fn crc32(data: []const u8) u32 {
+        return std.hash.crc.Crc32Jamcrc.hash(data);
+    }
+
     pub fn buildSqPackFileName(
         allocator: Allocator,
         category_id: CategoryID,
@@ -146,7 +150,7 @@ pub const PathUtils = struct {
 
     pub fn parseGamePath(path: []const u8) !ParsedGamePath {
         // Index 2 hash is easy
-        const index2_hash = std.hash.Crc32.hash(path);
+        const index2_hash = crc32(path);
 
         // Split the path into parts
         var path_parts = std.mem.splitAny(u8, path, "/");
@@ -162,9 +166,9 @@ pub const PathUtils = struct {
         // Split what we need for index1
         const last_path_part = std.mem.lastIndexOf(u8, path, "/") orelse return error.InvalidPath;
         const file_only_str = path[last_path_part + 1 ..];
-        const file_only_hash = std.hash.Crc32.hash(file_only_str);
+        const file_only_hash = crc32(file_only_str);
         const directory_str = path[0 .. last_path_part + 1];
-        const directory_hash = std.hash.Crc32.hash(directory_str);
+        const directory_hash = crc32(directory_str);
 
         // Pack index1 hash
         const index1_hash: u64 = (@as(u64, @intCast(directory_hash)) << 32) | file_only_hash;
@@ -225,6 +229,14 @@ test "buildSqPackFileName" {
         );
         defer std.testing.allocator.free(result);
         try std.testing.expectEqualStrings(expected, result);
+    }
+}
+
+test "crc32" {
+    {
+        const expected = 0xa2850653;
+        const result = PathUtils.crc32("chara/equipment/e0633/material/v0010/mt_c0101e0633_met_a.mtrl");
+        try std.testing.expectEqual(expected, result);
     }
 }
 
@@ -315,8 +327,8 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
-            .index1_hash = 0xadb96341ab3431f9,
-            .index2_hash = 0x412fbc68,
+            .index1_hash = 0x52469cbe54cbce06,
+            .index2_hash = 0xbed04397,
         };
         const result = try PathUtils.parseGamePath("chara/ex6/beep.dat");
         try std.testing.expectEqual(expected, result);
@@ -328,8 +340,8 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 0,
-            .index1_hash = 0x9538ab3cab3431f9,
-            .index2_hash = 0xcd35ddff,
+            .index1_hash = 0x6ac754c354cbce06,
+            .index2_hash = 0x32ca2200,
         };
         const result = try PathUtils.parseGamePath("chara/beep.dat");
         try std.testing.expectEqual(expected, result);
@@ -354,8 +366,8 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
-            .index1_hash = 0x5220665400000000,
-            .index2_hash = 0x52206654,
+            .index1_hash = 0xaddf99abffffffff,
+            .index2_hash = 0xaddf99ab,
         };
         const result = try PathUtils.parseGamePath("chara/ex6/folder/");
         try std.testing.expectEqual(expected, result);
