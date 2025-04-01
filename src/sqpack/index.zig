@@ -128,30 +128,46 @@ fn IndexTable(comptime InEntryType: type) type {
 
         allocator: Allocator,
         entries: []EntryType,
+        hash_table: std.AutoArrayHashMapUnmanaged(EntryType.HashType, *EntryType),
 
         pub fn init(allocator: Allocator, index: *Index(EntryType), file: *const std.fs.File) !*Self {
             const self = try allocator.create(Self);
             errdefer allocator.destroy(self);
 
             self.allocator = allocator;
+            self.hash_table = .{};
 
+            // Calculate the size of the index table
             const entry_count = index.index_header.index_data_size / @sizeOf(EntryType);
             self.entries = try allocator.alloc(EntryType, entry_count);
             errdefer allocator.free(self.entries);
 
+            // Skip to the index data offset
             _ = try file.seekTo(index.index_header.index_data_offset);
 
+            // Read the index table entries
             const reader = file.reader();
-
             const entries_bytes = std.mem.sliceAsBytes(self.entries);
             _ = try reader.readAll(entries_bytes);
+
+            // Populate the hash maps
+            try self.populateHashMaps(allocator);
 
             return self;
         }
 
         pub fn cleanup(self: *Self) void {
+            self.hash_table.deinit(self.allocator);
             self.allocator.free(self.entries);
             self.allocator.destroy(self);
+        }
+
+        fn populateHashMaps(self: *Self, allocator: Allocator) !void {
+            try self.hash_table.ensureTotalCapacity(allocator, @intCast(self.entries.len));
+            for (self.entries) |*entry| {
+                const hash = entry.hash();
+                self.hash_table.putAssumeCapacity(hash, entry);
+            }
         }
     };
 }
