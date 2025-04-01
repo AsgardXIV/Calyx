@@ -41,6 +41,8 @@ pub const GameData = struct {
             .version = game_version,
         };
 
+        try self.pack.scanForRepos();
+
         return self;
     }
 

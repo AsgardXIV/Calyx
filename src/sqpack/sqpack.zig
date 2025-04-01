@@ -26,8 +26,6 @@ pub const SqPack = struct {
             .repos = .{},
         };
 
-        try self.scanForRepos();
-
         return self;
     }
 
@@ -37,7 +35,9 @@ pub const SqPack = struct {
         self.allocator.destroy(self);
     }
 
-    fn scanForRepos(self: *SqPack) !void {
+    pub fn scanForRepos(self: *SqPack) !void {
+        self.cleanupRepos();
+
         var folder = std.fs.openDirAbsolute(self.repos_path, .{ .iterate = true, .no_follow = true }) catch {
             return error.InvalidGameFolder;
         };
