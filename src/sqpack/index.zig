@@ -136,6 +136,7 @@ pub fn Index(comptime EntryType: type) type {
                     .data_file_id = entry.dataFileId(),
                     .data_file_offset = entry.dataFileOffset(),
                     .repo_id = self.chunk.category.repository.repo_id,
+                    .category_id = self.chunk.category.category_id,
                     .chunk_id = self.chunk.chunk_id,
                 };
             }

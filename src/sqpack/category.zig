@@ -5,8 +5,10 @@ const Allocator = std.mem.Allocator;
 const Repository = @import("repository.zig").Repository;
 const CategoryID = @import("category_id.zig").CategoryID;
 const Chunk = @import("chunk.zig").Chunk;
-const ParsedGamePath = @import("path_utils.zig").ParsedGamePath;
-const FileLookupResult = @import("path_utils.zig").FileLookupResult;
+
+const path_utils = @import("path_utils.zig");
+const ParsedGamePath = path_utils.ParsedGamePath;
+const FileLookupResult = path_utils.FileLookupResult;
 
 pub const Category = struct {
     const Self = @This();

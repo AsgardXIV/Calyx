@@ -25,6 +25,7 @@ pub const FileLookupResult = struct {
     data_file_id: u8,
     data_file_offset: u64,
     repo_id: u8,
+    category_id: CategoryID,
     chunk_id: u8,
 };
 
