@@ -4,8 +4,13 @@ const Allocator = std.mem.Allocator;
 const Repository = @import("repository.zig").Repository;
 const CategoryID = @import("category_id.zig").CategoryID;
 const index = @import("index.zig");
-const PathUtils = @import("path_utils.zig").PathUtils;
+
 const FileType = @import("file_type.zig").FileType;
+
+const path_utils = @import("path_utils.zig");
+const PathUtils = path_utils.PathUtils;
+const ParsedGamePath = path_utils.ParsedGamePath;
+const FileLookupResult = path_utils.FileLookupResult;
 
 pub const Chunk = struct {
     const Self = @This();
@@ -36,6 +41,22 @@ pub const Chunk = struct {
     pub fn deinit(self: *Self) void {
         self.cleanupIndexes();
         self.allocator.destroy(self);
+    }
+
+    pub fn lookupFile(self: *Self, path: ParsedGamePath) ?FileLookupResult {
+        if (self.index1) |idx| {
+            if (idx.lookupFile(path)) |result| {
+                return result;
+            }
+        }
+
+        if (self.index2) |idx| {
+            if (idx.lookupFile(path)) |result| {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     fn setupIndexes(self: *Self) !void {

@@ -21,6 +21,11 @@ pub const ParsedSqPackFileName = struct {
     file_idx: ?u8,
 };
 
+pub const FileLookupResult = struct {
+    data_file_id: u8,
+    data_file_offset: u64,
+};
+
 pub const PathUtils = struct {
     const BaseRepoId: u8 = 0;
     const BaseRepoName = "ffxiv";

@@ -2,14 +2,12 @@ const std = @import("std");
 
 const Platform = @import("../common/platform.zig").Platform;
 const FileType = @import("file_type.zig").FileType;
-const ParsedGamePath = @import("path_utils.zig").ParsedGamePath;
+
+const path_utils = @import("path_utils.zig");
+const ParsedGamePath = path_utils.ParsedGamePath;
+const FileLookupResult = path_utils.FileLookupResult;
 
 const Allocator = std.mem.Allocator;
-
-pub const FileLookupResult = struct {
-    data_file_id: u8,
-    data_file_offset: u64,
-};
 
 pub const SqPackHeader = extern struct {
     magic: [8]u8,
