@@ -12,6 +12,15 @@ pub const ParsedGamePath = struct {
     index2_hash: u32,
 };
 
+pub const ParsedSqPackFileName = struct {
+    category_id: CategoryID,
+    repo_id: u8,
+    chunk_id: u8,
+    platform: Platform,
+    file_type: FileType,
+    file_idx: ?u8,
+};
+
 pub const PathUtils = struct {
     const BaseRepoId: u8 = 0;
     const BaseRepoName = "ffxiv";
@@ -26,22 +35,86 @@ pub const PathUtils = struct {
         file_type: FileType,
         file_idx: ?u8,
     ) ![]const u8 {
+        return try buildSqPackFileNameTyped(
+            allocator,
+            .{
+                .category_id = category_id,
+                .repo_id = repo_id,
+                .chunk_id = chunk_id,
+                .platform = platform,
+                .file_type = file_type,
+                .file_idx = file_idx,
+            },
+        );
+    }
+
+    pub fn buildSqPackFileNameTyped(
+        allocator: Allocator,
+        path: ParsedSqPackFileName,
+    ) ![]const u8 {
         var buf: [4]u8 = undefined;
-        const file_id_str = if (file_idx) |fid|
+        const file_id_str = if (path.file_idx) |fid|
             try std.fmt.bufPrint(&buf, "{d}", .{fid})
         else
             "";
 
         const formatted = try std.fmt.allocPrint(allocator, "{x:0>2}{x:0>2}{x:0>2}.{s}.{s}{s}", .{
-            @intFromEnum(category_id),
-            repo_id,
-            chunk_id,
-            platform.toString(),
-            file_type.toString(),
+            @intFromEnum(path.category_id),
+            path.repo_id,
+            path.chunk_id,
+            path.platform.toString(),
+            path.file_type.toString(),
             file_id_str,
         });
 
         return formatted;
+    }
+
+    pub fn parseSqPackFileName(file_name: []const u8) !ParsedSqPackFileName {
+        var parts = std.mem.splitSequence(u8, file_name, ".");
+
+        const bundle_str = parts.next() orelse return error.InvalidSqPackFilename;
+        const platform_str = parts.next() orelse return error.InvalidSqPackFilename;
+        const extension = parts.next() orelse return error.InvalidSqPackFilename;
+
+        if (bundle_str.len != 6) {
+            return error.InvalidSqPackFilename;
+        }
+
+        const category_str = bundle_str[0..2];
+        const repo_str = bundle_str[2..4];
+        const chunk_str = bundle_str[4..6];
+
+        const category_id_int = try std.fmt.parseInt(u8, category_str, 16);
+        const category_id: CategoryID = @enumFromInt(category_id_int);
+
+        const repo_id = try std.fmt.parseInt(u8, repo_str, 16);
+        const chunk = try std.fmt.parseInt(u8, chunk_str, 16);
+
+        const platform = Platform.fromString(platform_str) orelse return error.InvalidPlatform;
+
+        var file_index: ?u8 = null;
+
+        const file_type: ?FileType = FileType.fromString(extension) orelse blk: {
+            if (std.mem.startsWith(u8, extension, FileType.dat.toString())) {
+                file_index = try std.fmt.parseInt(u8, extension[3..], 10);
+                break :blk .dat;
+            }
+            break :blk null;
+        };
+
+        if (file_type == null) {
+            return error.InvalidFileType;
+        }
+
+        return ParsedSqPackFileName{
+            .category_id = category_id,
+            .repo_id = repo_id,
+            .chunk_id = chunk,
+            .platform = platform,
+            .file_type = file_type.?,
+            .file_idx = file_index,
+        };
     }
 
     pub fn repoNameToId(repo_name: []const u8, fallback: bool) !u8 {
@@ -138,6 +211,46 @@ test "buildSqPackFileName" {
     }
 }
 
+test "parseSqPackFileName" {
+    {
+        const expected = ParsedSqPackFileName{
+            .category_id = CategoryID.chara,
+            .repo_id = 6,
+            .chunk_id = 2,
+            .platform = Platform.win32,
+            .file_type = FileType.index,
+            .file_idx = null,
+        };
+        const result = try PathUtils.parseSqPackFileName("040602.win32.index");
+        try std.testing.expectEqual(expected, result);
+    }
+
+    {
+        const expected = ParsedSqPackFileName{
+            .category_id = CategoryID.chara,
+            .repo_id = 6,
+            .chunk_id = 2,
+            .platform = Platform.ps5,
+            .file_type = FileType.dat,
+            .file_idx = 3,
+        };
+        const result = try PathUtils.parseSqPackFileName("040602.ps5.dat3");
+        try std.testing.expectEqual(expected, result);
+    }
+
+    {
+        const result = PathUtils.parseSqPackFileName("04060.ps5.dat3");
+        const expected = error.InvalidSqPackFilename;
+        try std.testing.expectError(expected, result);
+    }
+
+    {
+        const result = PathUtils.parseSqPackFileName("invalid");
+        const expected = error.InvalidSqPackFilename;
+        try std.testing.expectError(expected, result);
+    }
+}
+
 test "repoNameToId" {
     {
         const expected = PathUtils.BaseRepoId;
@@ -170,7 +283,7 @@ test "repoNameToId" {
     }
 }
 
-test "calculateGamePath" {
+test "parseGamePath" {
     {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
