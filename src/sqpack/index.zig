@@ -2,8 +2,14 @@ const std = @import("std");
 
 const Platform = @import("../common/platform.zig").Platform;
 const FileType = @import("file_type.zig").FileType;
+const ParsedGamePath = @import("path_utils.zig").ParsedGamePath;
 
 const Allocator = std.mem.Allocator;
+
+pub const FileLookupResult = struct {
+    data_file_id: u8,
+    data_file_offset: u64,
+};
 
 pub const SqPackHeader = extern struct {
     magic: [8]u8,
@@ -50,11 +56,12 @@ pub const SqPackIndex1TableEntry = extern struct {
     }
 
     pub fn dataFileId(self: *const Self) u8 {
-        return @truncate((self.packed_data & 0b1110) >> 1);
+        return @truncate((self.packed_data >> 1) & 0b111);
     }
 
-    pub fn dataFileOffset(self: *const Self) u32 {
-        return @truncate((self.packed_data & ~@as(u32, @intCast(0xF))) * 0x08);
+    pub fn dataFileOffset(self: *const Self) u64 {
+        const block_offset = self.packed_data & ~@as(u32, 0xF);
+        return @as(u64, block_offset) * 0x08;
     }
 };
 
@@ -72,11 +79,12 @@ pub const SqPackIndex2TableEntry = extern struct {
     }
 
     pub fn dataFileId(self: *const Self) u8 {
-        return @truncate((self.packed_data & 0b1110) >> 1);
+        return @truncate((self.packed_data >> 1) & 0b111);
     }
 
-    pub fn dataFileOffset(self: *const Self) u32 {
-        return @truncate((self.packed_data & ~@as(u32, @intCast(0xF))) * 0x08);
+    pub fn dataFileOffset(self: *const Self) u64 {
+        const block_offset = self.packed_data & ~@as(u32, 0xF);
+        return @as(u64, block_offset) * 0x08;
     }
 };
 
@@ -115,6 +123,20 @@ pub fn Index(comptime EntryType: type) type {
         pub fn deinit(self: *Self) void {
             self.index_table.cleanup();
             self.allocator.destroy(self);
+        }
+
+        pub fn lookupFile(self: *Self, path: ParsedGamePath) ?FileLookupResult {
+            const hash = if (EntryType == SqPackIndex1TableEntry) path.index1_hash else path.index2_hash;
+
+            const index_entry = self.index_table.hash_table.get(hash);
+            if (index_entry) |entry| {
+                return FileLookupResult{
+                    .data_file_id = entry.dataFileId(),
+                    .data_file_offset = entry.dataFileOffset(),
+                };
+            }
+
+            return null;
         }
     };
 }

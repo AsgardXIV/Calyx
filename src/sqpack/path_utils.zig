@@ -167,11 +167,11 @@ pub const PathUtils = struct {
         const last_path_part = std.mem.lastIndexOf(u8, path, "/") orelse return error.InvalidPath;
         const file_only_str = path[last_path_part + 1 ..];
         const file_only_hash = crc32(file_only_str);
-        const directory_str = path[0 .. last_path_part + 1];
+        const directory_str = path[0..last_path_part];
         const directory_hash = crc32(directory_str);
 
         // Pack index1 hash
-        const index1_hash: u64 = (@as(u64, @intCast(directory_hash)) << 32) | file_only_hash;
+        const index1_hash: u64 = (@as(u64, directory_hash) << 32) | file_only_hash;
 
         return ParsedGamePath{
             .category_id = category_id,
