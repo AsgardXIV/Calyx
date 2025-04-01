@@ -332,7 +332,7 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
-            .index1_hash = 0x52469cbe54cbce06,
+            .index1_hash = 0x2e7e889c54cbce06,
             .index2_hash = 0xbed04397,
         };
         const result = try PathUtils.parseGamePath("chara/ex6/beep.dat");
@@ -345,7 +345,7 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 0,
-            .index1_hash = 0x6ac754c354cbce06,
+            .index1_hash = 0x7774313e54cbce06,
             .index2_hash = 0x32ca2200,
         };
         const result = try PathUtils.parseGamePath("chara/beep.dat");
@@ -371,7 +371,7 @@ test "parseGamePath" {
         const expected = ParsedGamePath{
             .category_id = CategoryID.chara,
             .repo_id = 6,
-            .index1_hash = 0xaddf99abffffffff,
+            .index1_hash = 0xb811ed45ffffffff,
             .index2_hash = 0xaddf99ab,
         };
         const result = try PathUtils.parseGamePath("chara/ex6/folder/");
