@@ -7,6 +7,8 @@ const Chunk = @import("chunk.zig").Chunk;
 const path_utils = @import("path_utils.zig");
 const PathUtils = path_utils.PathUtils;
 
+const FileStream = std.io.FixedBufferStream([]u8);
+
 pub const VirtualFileType = enum(u32) {
     empty = 0x1,
     standard = 0x2,
@@ -95,7 +97,7 @@ pub const DatFile = struct {
         return raw_bytes;
     }
 
-    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, stream: *std.io.FixedBufferStream([]u8)) !void {
+    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
 
         const block_count = file_info.num_of_blocks;
@@ -113,7 +115,7 @@ pub const DatFile = struct {
         }
     }
 
-    fn readFileBlock(self: *Self, offset: u64, block_info: *DatBlockInfo, stream: *std.io.FixedBufferStream([]u8)) !void {
+    fn readFileBlock(self: *Self, offset: u64, block_info: *DatBlockInfo, stream: *FileStream) !void {
         _ = block_info;
 
         try self.file.seekTo(offset);
