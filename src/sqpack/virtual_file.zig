@@ -19,8 +19,28 @@ pub const VirtualFileInfo = extern struct {
     size: u32,
     file_type: VirtualFileType,
     raw_file_size: u32,
-    _padding0: u16,
+    _padding0: u32,
+    _padding1: u32,
     num_of_blocks: u32,
+};
+
+pub const DatBlockInfo = extern struct {
+    offset: u32,
+    compressed_size: u16,
+    uncompressed_size: u16,
+};
+
+pub const DatBlockType = enum(u32) {
+    compressed = 16000,
+    uncompressed = 32000,
+    _,
+};
+
+pub const DatBlockHeader = extern struct {
+    size: u32,
+    _padding0: u32,
+    block_type: DatBlockType,
+    data_size: u32,
 };
 
 pub const DatFile = struct {
@@ -52,23 +72,59 @@ pub const DatFile = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn loadVirtualFile(self: *Self, allocator: Allocator, offset: u64) ![]const u8 {
+    pub fn readFile(self: *Self, allocator: Allocator, offset: u64) ![]const u8 {
         try self.file.seekTo(offset);
 
         const reader = self.file.reader();
 
         const file_info = try reader.readStruct(VirtualFileInfo);
 
-        const buffer = try allocator.alloc(u8, file_info.raw_file_size);
-        errdefer allocator.free(buffer);
+        const raw_bytes = try allocator.alloc(u8, file_info.raw_file_size);
+        errdefer allocator.free(raw_bytes);
 
-        return switch (file_info.file_type) {
-            .empty => buffer,
-            .standard => buffer,
-            .model => buffer,
-            .texture => buffer,
-            else => error.InvalidFileType,
-        };
+        var stream = std.io.fixedBufferStream(raw_bytes);
+
+        switch (file_info.file_type) {
+            .empty => {},
+            .standard => try self.readStandardFile(offset, file_info, &stream),
+            .model => {},
+            .texture => {},
+            else => return error.InvalidFileType,
+        }
+
+        return raw_bytes;
+    }
+
+    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, buffer: *std.io.FixedBufferStream([]u8)) !void {
+        const reader = self.file.reader();
+
+        const block_count = file_info.num_of_blocks;
+
+        const blocks = try self.allocator.alloc(DatBlockInfo, block_count);
+        defer self.allocator.free(blocks);
+
+        for (blocks) |*block| {
+            block.* = try reader.readStruct(DatBlockInfo);
+        }
+
+        for (blocks) |*block| {
+            const calculated_offset = base_offset + file_info.size + block.offset;
+            try self.readFileBlock(calculated_offset, buffer);
+        }
+    }
+
+    fn readFileBlock(self: *Self, offset: u64, buffer: *std.io.FixedBufferStream([]u8)) !void {
+        try self.file.seekTo(offset);
+
+        const reader = self.file.reader();
+        const block_header = try reader.readStruct(DatBlockHeader);
+
+        if (block_header.block_type == .uncompressed) {
+            _ = try reader.readAll(buffer.buffer[buffer.pos .. buffer.pos + block_header.data_size]);
+            buffer.pos += block_header.data_size;
+        } else {
+            // TODO: Decompress here?
+        }
     }
 
     fn mountDatFile(self: *Self) !void {
