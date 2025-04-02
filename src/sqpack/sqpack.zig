@@ -10,6 +10,8 @@ const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 const PathUtils = path_utils.PathUtils;
 
+const RepositoryId = @import("repository_id.zig").RepositoryId;
+
 const CategoryId = @import("category_id.zig").CategoryId;
 
 pub const SqPack = struct {
@@ -18,7 +20,7 @@ pub const SqPack = struct {
     allocator: Allocator,
     game_data: *GameData,
     repos_path: []const u8,
-    repos: std.AutoArrayHashMapUnmanaged(u8, *Repository),
+    repos: std.AutoArrayHashMapUnmanaged(RepositoryId, *Repository),
 
     pub fn init(allocator: Allocator, game_data: *GameData, repos_path: []const u8) !*Self {
         const self = try allocator.create(Self);
@@ -59,7 +61,7 @@ pub const SqPack = struct {
             if (entry.kind != std.fs.Dir.Entry.Kind.directory) continue;
 
             const repo_name = entry.basename;
-            const repo_id = try PathUtils.repoNameToId(repo_name, false);
+            const repo_id = try RepositoryId.repoNameToId(repo_name, false);
 
             const repo_path = try std.fs.path.join(self.allocator, &.{ self.repos_path, repo_name });
             defer self.allocator.free(repo_path);
@@ -78,7 +80,7 @@ pub const SqPack = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, allocator: Allocator, repo_id: u8, category_id: CategoryId, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
+    pub fn loadFile(self: *Self, allocator: Allocator, repo_id: RepositoryId, category_id: CategoryId, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
         if (self.repos.get(repo_id)) |repo| {
             return repo.loadFile(allocator, category_id, chunk_id, dat_id, offset);
         }

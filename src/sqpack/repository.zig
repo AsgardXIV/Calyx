@@ -12,16 +12,18 @@ const PathUtils = path_utils.PathUtils;
 const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 
+const RepositoryId = @import("repository_id.zig").RepositoryId;
+
 pub const Repository = struct {
     const Self = @This();
 
     allocator: Allocator,
     pack: *SqPack,
     repo_path: []const u8,
-    repo_id: u8,
+    repo_id: RepositoryId,
     categories: std.AutoArrayHashMapUnmanaged(CategoryId, *Category),
 
-    pub fn init(allocator: std.mem.Allocator, pack: *SqPack, repo_path: []const u8, repo_id: u8) !*Self {
+    pub fn init(allocator: std.mem.Allocator, pack: *SqPack, repo_path: []const u8, repo_id: RepositoryId) !*Self {
         const self = try allocator.create(Self);
         errdefer allocator.destroy(self);
 
