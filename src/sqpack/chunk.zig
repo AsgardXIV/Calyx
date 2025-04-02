@@ -65,11 +65,9 @@ pub const Chunk = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
-        const dat_file = try self.getDatFile(lookup.data_file_id);
-        const file_offset = lookup.data_file_offset;
-
-        try dat_file.load_file(file_offset);
+    pub fn loadFile(self: *Self, allocator: Allocator, dat_id: u8, offset: u64) ![]const u8 {
+        const dat_file = try self.getDatFile(dat_id);
+        return try dat_file.loadVirtualFile(allocator, offset);
     }
 
     fn getDatFile(self: *Self, file_id: u8) !*DatFile {

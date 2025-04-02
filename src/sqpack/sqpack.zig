@@ -10,6 +10,8 @@ const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 const PathUtils = path_utils.PathUtils;
 
+const CategoryID = @import("category_id.zig").CategoryID;
+
 pub const SqPack = struct {
     const Self = @This();
 
@@ -76,10 +78,12 @@ pub const SqPack = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
-        if (self.repos.get(lookup.repo_id)) |repo| {
-            try repo.loadFile(lookup);
+    pub fn loadFile(self: *Self, allocator: Allocator, repo_id: u8, category_id: CategoryID, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
+        if (self.repos.get(repo_id)) |repo| {
+            return repo.loadFile(allocator, category_id, chunk_id, dat_id, offset);
         }
+
+        return error.RepositoryNotFound;
     }
 
     fn cleanupRepos(self: *Self) void {

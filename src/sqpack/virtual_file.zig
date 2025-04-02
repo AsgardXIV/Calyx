@@ -12,6 +12,7 @@ pub const VirtualFileType = enum(u32) {
     standard = 0x2,
     model = 0x3,
     texture = 0x4,
+    _,
 };
 
 pub const VirtualFileInfo = extern struct {
@@ -41,7 +42,7 @@ pub const DatFile = struct {
             .file = undefined,
         };
 
-        try self.mount_file();
+        try self.mountDatFile();
 
         return self;
     }
@@ -51,17 +52,26 @@ pub const DatFile = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn load_file(self: *Self, offset: u64) !void {
+    pub fn loadVirtualFile(self: *Self, allocator: Allocator, offset: u64) ![]const u8 {
         try self.file.seekTo(offset);
 
         const reader = self.file.reader();
 
         const file_info = try reader.readStruct(VirtualFileInfo);
 
-        std.log.err("Type: {d}", .{@intFromEnum(file_info.file_type)});
+        const buffer = try allocator.alloc(u8, file_info.raw_file_size);
+        errdefer allocator.free(buffer);
+
+        return switch (file_info.file_type) {
+            .empty => buffer,
+            .standard => buffer,
+            .model => buffer,
+            .texture => buffer,
+            else => error.InvalidFileType,
+        };
     }
 
-    fn mount_file(self: *Self) !void {
+    fn mountDatFile(self: *Self) !void {
         const file_name = try PathUtils.buildSqPackFileNameTyped(self.allocator, .{
             .platform = self.chunk.category.repository.pack.game_data.platform,
             .repo_id = self.chunk.category.repository.repo_id,

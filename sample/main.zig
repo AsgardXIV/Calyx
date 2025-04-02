@@ -9,10 +9,5 @@ pub fn main() !void {
     const game_data = try calyx.GameData.init(allocator, "C:\\Program Files\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn\\game", .win32);
     defer game_data.deinit();
 
-    const parsed_path = try calyx.sqpack.PathUtils.parseGamePath("chara/equipment/e0842/material/v0006/mt_c0101e0842_met_a.mtrl");
-    const lookup = game_data.pack.lookupFile(parsed_path);
-    if (lookup) |result| {
-        std.log.info("Lookup result: {x}", .{result.data_file_offset});
-        _ = try game_data.pack.loadFile(result);
-    }
+    try game_data.getGameFileHandle("chara/equipment/e0842/material/v0006/mt_c0101e0842_met_a.mtrl");
 }

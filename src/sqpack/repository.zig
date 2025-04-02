@@ -55,10 +55,12 @@ pub const Repository = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, lookup: FileLookupResult) !void {
-        if (self.categories.get(lookup.category_id)) |category| {
-            try category.loadFile(lookup);
+    pub fn loadFile(self: *Self, allocator: Allocator, category_id: CategoryID, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
+        if (self.categories.get(category_id)) |category| {
+            return category.loadFile(allocator, chunk_id, dat_id, offset);
         }
+
+        return error.CategoryNotFound;
     }
 
     fn discoverChunks(self: *Self) !void {
