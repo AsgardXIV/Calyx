@@ -84,6 +84,7 @@ pub const GameVersion = struct {
             .day = 0,
             .build = 0,
             .revision = 0,
+            .valid = false,
         };
 
         @memcpy(version.str[0..unknown_str.len], unknown_str);
@@ -104,6 +105,7 @@ test "GameVersion.parseFromString" {
         expected.day = 27;
         expected.build = 100;
         expected.revision = 1337;
+        expected.valid = true;
         try std.testing.expectEqual(expected, version);
     }
 
