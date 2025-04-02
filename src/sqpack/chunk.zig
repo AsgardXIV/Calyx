@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 const index = @import("index.zig");
 
 const Category = @import("category.zig").Category;
-const CategoryID = @import("category_id.zig").CategoryID;
+const CategoryId = @import("category_id.zig").CategoryId;
 
 const FileType = @import("file_type.zig").FileType;
 

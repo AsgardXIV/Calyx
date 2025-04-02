@@ -3,7 +3,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const Repository = @import("repository.zig").Repository;
-const CategoryID = @import("category_id.zig").CategoryID;
+const CategoryId = @import("category_id.zig").CategoryId;
 const Chunk = @import("chunk.zig").Chunk;
 
 const path_utils = @import("path_utils.zig");
@@ -14,11 +14,11 @@ pub const Category = struct {
     const Self = @This();
 
     allocator: Allocator,
-    category_id: CategoryID,
+    category_id: CategoryId,
     repository: *Repository,
     chunks: std.AutoArrayHashMapUnmanaged(u8, *Chunk),
 
-    pub fn init(allocator: Allocator, category_id: CategoryID, repository: *Repository) !*Category {
+    pub fn init(allocator: Allocator, category_id: CategoryId, repository: *Repository) !*Category {
         const self = try allocator.create(Category);
         errdefer allocator.destroy(self);
 

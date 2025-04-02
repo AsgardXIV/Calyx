@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const CategoryID = enum(u8) {
+pub const CategoryId = enum(u8) {
     const Self = @This();
 
     common = 0x00,
@@ -28,19 +28,19 @@ pub const CategoryID = enum(u8) {
     }
 };
 
-test "categoryId" {
+test "CategoryId" {
     {
-        const actual = CategoryID.fromString("chara");
-        try std.testing.expectEqual(CategoryID.chara, actual);
+        const actual = CategoryId.fromString("chara");
+        try std.testing.expectEqual(CategoryId.chara, actual);
     }
 
     {
-        const actual = CategoryID.ui.toString();
+        const actual = CategoryId.ui.toString();
         try std.testing.expectEqual("ui", actual);
     }
 
     {
-        const actual = CategoryID.fromString("invalid");
+        const actual = CategoryId.fromString("invalid");
         try std.testing.expectEqual(null, actual);
     }
 }

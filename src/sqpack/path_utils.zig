@@ -1,19 +1,19 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const CategoryID = @import("category_id.zig").CategoryID;
+const CategoryId = @import("category_id.zig").CategoryId;
 const FileType = @import("file_type.zig").FileType;
 const Platform = @import("../common/platform.zig").Platform;
 
 pub const ParsedGamePath = struct {
-    category_id: CategoryID,
+    category_id: CategoryId,
     repo_id: u8,
     index1_hash: u64,
     index2_hash: u32,
 };
 
 pub const ParsedSqPackFileName = struct {
-    category_id: CategoryID,
+    category_id: CategoryId,
     repo_id: u8,
     chunk_id: u8,
     platform: Platform,
@@ -25,7 +25,7 @@ pub const FileLookupResult = struct {
     data_file_id: u8,
     data_file_offset: u64,
     repo_id: u8,
-    category_id: CategoryID,
+    category_id: CategoryId,
     chunk_id: u8,
 };
 
@@ -40,7 +40,7 @@ pub const PathUtils = struct {
 
     pub fn buildSqPackFileName(
         allocator: Allocator,
-        category_id: CategoryID,
+        category_id: CategoryId,
         repo_id: u8,
         chunk_id: u8,
         platform: Platform,
@@ -102,7 +102,7 @@ pub const PathUtils = struct {
 
         // Resolve the category ID
         const category_id_int = try std.fmt.parseInt(u8, category_str, 16);
-        const category_id: CategoryID = @enumFromInt(category_id_int);
+        const category_id: CategoryId = @enumFromInt(category_id_int);
 
         // Resolve the repository ID
         const repo_id = try std.fmt.parseInt(u8, repo_str, 16);
@@ -165,7 +165,7 @@ pub const PathUtils = struct {
 
         // Get the category ID
         const category_name = path_parts.next() orelse return error.MalformedPath;
-        const category_id = CategoryID.fromString(category_name) orelse return error.InvalidCategory;
+        const category_id = CategoryId.fromString(category_name) orelse return error.InvalidCategory;
 
         // Get the repository ID
         const repo_name = path_parts.next() orelse return error.MalformedPath;
@@ -196,7 +196,7 @@ test "buildSqPackFileName" {
         const expected = "040602.win32.index";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
-            CategoryID.chara,
+            CategoryId.chara,
             6,
             2,
             Platform.win32,
@@ -212,7 +212,7 @@ test "buildSqPackFileName" {
         const expected = "040602.win32.index2";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
-            CategoryID.chara,
+            CategoryId.chara,
             6,
             2,
             Platform.win32,
@@ -228,7 +228,7 @@ test "buildSqPackFileName" {
         const expected = "030103.ps5.dat0";
         const result = try PathUtils.buildSqPackFileName(
             std.testing.allocator,
-            CategoryID.cut,
+            CategoryId.cut,
             1,
             3,
             Platform.ps5,
@@ -252,7 +252,7 @@ test "parseSqPackFileName" {
     {
         // Basic test without file index
         const expected = ParsedSqPackFileName{
-            .category_id = CategoryID.chara,
+            .category_id = CategoryId.chara,
             .repo_id = 6,
             .chunk_id = 2,
             .platform = Platform.win32,
@@ -266,7 +266,7 @@ test "parseSqPackFileName" {
     {
         // Basic test with a file index
         const expected = ParsedSqPackFileName{
-            .category_id = CategoryID.chara,
+            .category_id = CategoryId.chara,
             .repo_id = 6,
             .chunk_id = 2,
             .platform = Platform.ps5,
@@ -333,7 +333,7 @@ test "parseGamePath" {
     {
         // Basic path with explicit repo ID
         const expected = ParsedGamePath{
-            .category_id = CategoryID.chara,
+            .category_id = CategoryId.chara,
             .repo_id = 6,
             .index1_hash = 0x2e7e889c54cbce06,
             .index2_hash = 0xbed04397,
@@ -346,7 +346,7 @@ test "parseGamePath" {
         // Basic path with implicit repo ID
 
         const expected = ParsedGamePath{
-            .category_id = CategoryID.chara,
+            .category_id = CategoryId.chara,
             .repo_id = 0,
             .index1_hash = 0x7774313e54cbce06,
             .index2_hash = 0x32ca2200,
@@ -372,7 +372,7 @@ test "parseGamePath" {
     {
         // Blank file name, technically allowed
         const expected = ParsedGamePath{
-            .category_id = CategoryID.chara,
+            .category_id = CategoryId.chara,
             .repo_id = 6,
             .index1_hash = 0xb811ed45ffffffff,
             .index2_hash = 0xaddf99ab,

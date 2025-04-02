@@ -10,7 +10,7 @@ const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 const PathUtils = path_utils.PathUtils;
 
-const CategoryID = @import("category_id.zig").CategoryID;
+const CategoryId = @import("category_id.zig").CategoryId;
 
 pub const SqPack = struct {
     const Self = @This();
@@ -78,7 +78,7 @@ pub const SqPack = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, allocator: Allocator, repo_id: u8, category_id: CategoryID, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
+    pub fn loadFile(self: *Self, allocator: Allocator, repo_id: u8, category_id: CategoryId, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
         if (self.repos.get(repo_id)) |repo| {
             return repo.loadFile(allocator, category_id, chunk_id, dat_id, offset);
         }

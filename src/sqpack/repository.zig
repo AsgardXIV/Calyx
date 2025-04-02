@@ -4,7 +4,7 @@ const SqPack = @import("sqpack.zig").SqPack;
 const Chunk = @import("chunk.zig").Chunk;
 
 const FileType = @import("file_type.zig").FileType;
-const CategoryID = @import("category_id.zig").CategoryID;
+const CategoryId = @import("category_id.zig").CategoryId;
 const Category = @import("category.zig").Category;
 
 const path_utils = @import("path_utils.zig");
@@ -19,7 +19,7 @@ pub const Repository = struct {
     pack: *SqPack,
     repo_path: []const u8,
     repo_id: u8,
-    categories: std.AutoArrayHashMapUnmanaged(CategoryID, *Category),
+    categories: std.AutoArrayHashMapUnmanaged(CategoryId, *Category),
 
     pub fn init(allocator: std.mem.Allocator, pack: *SqPack, repo_path: []const u8, repo_id: u8) !*Self {
         const self = try allocator.create(Self);
@@ -55,7 +55,7 @@ pub const Repository = struct {
         return null;
     }
 
-    pub fn loadFile(self: *Self, allocator: Allocator, category_id: CategoryID, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
+    pub fn loadFile(self: *Self, allocator: Allocator, category_id: CategoryId, chunk_id: u8, dat_id: u8, offset: u64) ![]const u8 {
         if (self.categories.get(category_id)) |category| {
             return category.loadFile(allocator, chunk_id, dat_id, offset);
         }
@@ -67,7 +67,7 @@ pub const Repository = struct {
         var folder = try std.fs.openDirAbsolute(self.repo_path, .{ .iterate = true, .no_follow = true });
         defer folder.close();
 
-        var discovered_unique: std.AutoHashMapUnmanaged(struct { category_id: CategoryID, chunk_id: u8 }, void) = .{};
+        var discovered_unique: std.AutoHashMapUnmanaged(struct { category_id: CategoryId, chunk_id: u8 }, void) = .{};
         defer discovered_unique.deinit(self.allocator);
 
         errdefer self.cleanupCategories(); // Cleanup on error
