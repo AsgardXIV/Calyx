@@ -75,17 +75,20 @@ pub const DatFile = struct {
     }
 
     pub fn readFile(self: *Self, allocator: Allocator, offset: u64) ![]const u8 {
-        try self.file.seekTo(offset);
-
         const reader = self.file.reader();
 
+        // Jump to the specified offset where the virtual file header starts
+        try self.file.seekTo(offset);
+
+        // Get the file info
         const file_info = try reader.readStruct(VirtualFileInfo);
 
+        // We can allocate the raw bytes up front
         const raw_bytes = try allocator.alloc(u8, file_info.raw_file_size);
         errdefer allocator.free(raw_bytes);
-
         var stream = std.io.fixedBufferStream(raw_bytes);
 
+        // Determine the type and read it into the buffer
         switch (file_info.file_type) {
             .empty => {},
             .standard => try self.readStandardFile(offset, file_info, &stream),
@@ -94,21 +97,26 @@ pub const DatFile = struct {
             else => return error.InvalidFileType,
         }
 
+        // Leave in a neutral position
+        try self.file.seekTo(0);
+
         return raw_bytes;
     }
 
     fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
 
+        // First we need to allocate space for the block infos
         const block_count = file_info.num_of_blocks;
-
         const blocks = try self.allocator.alloc(DatBlockInfo, block_count);
         defer self.allocator.free(blocks);
 
+        // Read the block info structs
         for (blocks) |*block| {
             block.* = try reader.readStruct(DatBlockInfo);
         }
 
+        // Now we can read the actual blocks
         for (blocks) |*block| {
             const calculated_offset = base_offset + file_info.size + block.offset;
             try self.readFileBlock(calculated_offset, block, stream);
@@ -117,17 +125,22 @@ pub const DatFile = struct {
 
     fn readFileBlock(self: *Self, offset: u64, block_info: *DatBlockInfo, stream: *FileStream) !void {
         _ = block_info;
+        const reader = self.file.reader();
 
+        // We need to seek to the block offset
         try self.file.seekTo(offset);
 
-        const reader = self.file.reader();
+        // Read the block header
         const block_header = try reader.readStruct(DatBlockHeader);
 
+        // Check if the block is compressed or uncompressed
         if (block_header.block_type == .uncompressed) {
+            // Uncompressed block so we just copy the bytes
             const slice = stream.buffer[stream.pos..][0..block_header.data_size];
             const bytes_read = try reader.readAll(slice);
             stream.pos += bytes_read;
         } else {
+            // Compressed block so we need to decompress it
             try std.compress.flate.decompress(reader, stream.writer());
         }
     }
