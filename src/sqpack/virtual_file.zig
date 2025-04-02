@@ -95,7 +95,7 @@ pub const DatFile = struct {
         return raw_bytes;
     }
 
-    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, buffer: *std.io.FixedBufferStream([]u8)) !void {
+    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, stream: *std.io.FixedBufferStream([]u8)) !void {
         const reader = self.file.reader();
 
         const block_count = file_info.num_of_blocks;
@@ -109,21 +109,24 @@ pub const DatFile = struct {
 
         for (blocks) |*block| {
             const calculated_offset = base_offset + file_info.size + block.offset;
-            try self.readFileBlock(calculated_offset, buffer);
+            try self.readFileBlock(calculated_offset, block, stream);
         }
     }
 
-    fn readFileBlock(self: *Self, offset: u64, buffer: *std.io.FixedBufferStream([]u8)) !void {
+    fn readFileBlock(self: *Self, offset: u64, block_info: *DatBlockInfo, stream: *std.io.FixedBufferStream([]u8)) !void {
+        _ = block_info;
+
         try self.file.seekTo(offset);
 
         const reader = self.file.reader();
         const block_header = try reader.readStruct(DatBlockHeader);
 
         if (block_header.block_type == .uncompressed) {
-            _ = try reader.readAll(buffer.buffer[buffer.pos .. buffer.pos + block_header.data_size]);
-            buffer.pos += block_header.data_size;
+            const slice = stream.buffer[stream.pos..][0..block_header.data_size];
+            const bytes_read = try reader.readAll(slice);
+            stream.pos += bytes_read;
         } else {
-            // TODO: Decompress here?
+            try std.compress.flate.decompress(reader, stream.writer());
         }
     }
 
