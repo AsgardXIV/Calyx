@@ -1,6 +1,8 @@
 const std = @import("std");
 
 pub const GameVersion = struct {
+    pub const unknown = unknownVersion();
+
     const version_str_len = 20;
 
     str: [version_str_len]u8,
@@ -9,6 +11,7 @@ pub const GameVersion = struct {
     day: u16,
     build: u16,
     revision: u16,
+    valid: bool,
 
     pub fn parseFromString(version_str: []const u8) !GameVersion {
         var self: GameVersion = undefined;
@@ -33,6 +36,7 @@ pub const GameVersion = struct {
         self.day = try std.fmt.parseInt(u16, day_str, 10);
         self.build = try std.fmt.parseInt(u16, build_str, 10);
         self.revision = try std.fmt.parseInt(u16, revision_str, 10);
+        self.valid = true;
 
         return self;
     }
@@ -68,6 +72,23 @@ pub const GameVersion = struct {
 
         if (self.revision > other.revision) return true;
         return false;
+    }
+
+    fn unknownVersion() GameVersion {
+        const unknown_str = "0000.00.00.0000.0000";
+
+        var version = GameVersion{
+            .str = undefined,
+            .year = 0,
+            .month = 0,
+            .day = 0,
+            .build = 0,
+            .revision = 0,
+        };
+
+        @memcpy(version.str[0..unknown_str.len], unknown_str);
+
+        return version;
     }
 };
 

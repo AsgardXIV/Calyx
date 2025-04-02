@@ -28,7 +28,7 @@ pub const GameData = struct {
 
         const game_version_file_path = try std.fs.path.join(allocator, &.{ install_path, GameDataVersionFile });
         defer allocator.free(game_version_file_path);
-        const game_version = try common.GameVersion.parseFromFilePath(game_version_file_path);
+        const game_version = common.GameVersion.parseFromFilePath(game_version_file_path) catch common.GameVersion.unknown;
 
         const sqpack_repo_path = try std.fs.path.join(allocator, &.{ install_path, SqPackRepoPath });
         defer allocator.free(sqpack_repo_path);
