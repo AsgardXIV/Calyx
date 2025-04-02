@@ -14,6 +14,8 @@ const FileLookupResult = path_utils.FileLookupResult;
 
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
+const GameVersion = @import("../common/game_version.zig").GameVersion;
+
 pub const Repository = struct {
     const Self = @This();
 
@@ -21,6 +23,7 @@ pub const Repository = struct {
     pack: *SqPack,
     repo_path: []const u8,
     repo_id: RepositoryId,
+    repo_version: GameVersion,
     categories: std.AutoArrayHashMapUnmanaged(CategoryId, *Category),
 
     pub fn init(allocator: std.mem.Allocator, pack: *SqPack, repo_path: []const u8, repo_id: RepositoryId) !*Self {
@@ -35,9 +38,11 @@ pub const Repository = struct {
             .pack = pack,
             .repo_path = cloned_path,
             .repo_id = repo_id,
+            .repo_version = undefined,
             .categories = .{},
         };
 
+        try self.setupVersion();
         try self.discoverChunks();
 
         return self;
@@ -63,6 +68,19 @@ pub const Repository = struct {
         }
 
         return error.CategoryNotFound;
+    }
+
+    fn setupVersion(self: *Self) !void {
+        const repo_name = try self.repo_id.toString(self.allocator);
+        defer self.allocator.free(repo_name);
+
+        const version_file_name = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ repo_name, FileType.ver.toString() });
+        defer self.allocator.free(version_file_name);
+
+        const version_file_path = try std.fs.path.join(self.allocator, &.{ self.repo_path, version_file_name });
+        defer self.allocator.free(version_file_path);
+
+        self.repo_version = GameVersion.parseFromFilePath(version_file_path) catch self.pack.game_data.version;
     }
 
     fn discoverChunks(self: *Self) !void {
