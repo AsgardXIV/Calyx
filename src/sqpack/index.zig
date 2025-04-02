@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Platform = @import("../common/platform.zig").Platform;
-const FileType = @import("file_type.zig").FileType;
+const FileExtension = @import("file_extension.zig").FileExtension;
 
 const path_utils = @import("path_utils.zig");
 const ParsedGamePath = path_utils.ParsedGamePath;
@@ -42,7 +42,7 @@ pub const SqPackIndexHeader = extern struct {
 };
 
 pub const SqPackIndex1TableEntry = extern struct {
-    pub const IndexFileType = FileType.index;
+    pub const IndexFileExtension = FileExtension.index;
     pub const HashType = u64;
 
     const Self = @This();
@@ -66,7 +66,7 @@ pub const SqPackIndex1TableEntry = extern struct {
 };
 
 pub const SqPackIndex2TableEntry = extern struct {
-    pub const IndexFileType = FileType.index2;
+    pub const IndexFileExtension = FileExtension.index2;
     pub const HashType = u32;
 
     const Self = @This();

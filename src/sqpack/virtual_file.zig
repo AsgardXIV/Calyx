@@ -9,7 +9,7 @@ const PathUtils = path_utils.PathUtils;
 
 const FileStream = std.io.FixedBufferStream([]u8);
 
-pub const VirtualFileType = enum(u32) {
+pub const FileType = enum(u32) {
     empty = 0x1,
     standard = 0x2,
     model = 0x3,
@@ -17,10 +17,10 @@ pub const VirtualFileType = enum(u32) {
     _,
 };
 
-pub const VirtualFileInfo = extern struct {
+pub const FileInfo = extern struct {
     size: u32,
-    file_type: VirtualFileType,
-    raw_file_size: u32,
+    file_type: FileType,
+    file_size: u32,
     _padding0: u32,
     _padding1: u32,
     num_of_blocks: u32,
@@ -81,10 +81,10 @@ pub const DatFile = struct {
         try self.file.seekTo(offset);
 
         // Get the file info
-        const file_info = try reader.readStruct(VirtualFileInfo);
+        const file_info = try reader.readStruct(FileInfo);
 
         // We can allocate the raw bytes up front
-        const raw_bytes = try allocator.alloc(u8, file_info.raw_file_size);
+        const raw_bytes = try allocator.alloc(u8, file_info.file_size);
         errdefer allocator.free(raw_bytes);
         var stream = std.io.fixedBufferStream(raw_bytes);
 
@@ -94,7 +94,7 @@ pub const DatFile = struct {
             .standard => try self.readStandardFile(offset, file_info, &stream),
             .model => {},
             .texture => {},
-            else => return error.InvalidFileType,
+            else => return error.InvalidFileExtension,
         }
 
         // Leave in a neutral position
@@ -103,7 +103,7 @@ pub const DatFile = struct {
         return raw_bytes;
     }
 
-    fn readStandardFile(self: *Self, base_offset: u64, file_info: VirtualFileInfo, stream: *FileStream) !void {
+    fn readStandardFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
 
         // First we need to allocate space for the block infos

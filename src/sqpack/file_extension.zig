@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const FileType = enum {
+pub const FileExtension = enum {
     const Self = @This();
 
     index,

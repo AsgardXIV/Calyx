@@ -6,7 +6,7 @@ const index = @import("index.zig");
 const Category = @import("category.zig").Category;
 const CategoryId = @import("category_id.zig").CategoryId;
 
-const FileType = @import("file_type.zig").FileType;
+const FileExtension = @import("file_extension.zig").FileExtension;
 
 const path_utils = @import("path_utils.zig");
 const PathUtils = path_utils.PathUtils;
@@ -99,7 +99,7 @@ pub const Chunk = struct {
     fn setupIndex(self: *Self, comptime T: type) !*index.Index(T) {
         const index_filename = try PathUtils.buildSqPackFileNameTyped(self.allocator, .{
             .chunk_id = self.chunk_id,
-            .file_type = T.IndexFileType,
+            .file_type = T.IndexFileExtension,
             .category_id = self.category.category_id,
             .platform = self.category.repository.pack.game_data.platform,
             .repo_id = self.category.repository.repo_id,

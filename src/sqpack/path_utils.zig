@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const CategoryId = @import("category_id.zig").CategoryId;
-const FileType = @import("file_type.zig").FileType;
+const FileExtension = @import("file_extension.zig").FileExtension;
 const Platform = @import("../common/platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
@@ -18,7 +18,7 @@ pub const ParsedSqPackFileName = struct {
     repo_id: RepositoryId,
     chunk_id: u8,
     platform: Platform,
-    file_type: FileType,
+    file_type: FileExtension,
     file_idx: ?u8,
 };
 
@@ -41,7 +41,7 @@ pub const PathUtils = struct {
         repo_id: RepositoryId,
         chunk_id: u8,
         platform: Platform,
-        file_type: FileType,
+        file_type: FileExtension,
         file_idx: ?u8,
     ) ![]const u8 {
         return try buildSqPackFileNameTyped(
@@ -87,7 +87,7 @@ pub const PathUtils = struct {
 
         const bundle_str = parts.next() orelse return error.InvalidSqPackFilename; // Bundle is the first section and contains category, repo, and chunk
         const platform_str = parts.next() orelse return error.InvalidSqPackFilename; // Platform is the second section, it's a string which we parse in Platform
-        const extension = parts.next() orelse return error.InvalidSqPackFilename; // Extension is the third section, which is a string. It's parsed as a FileType but has special handling for numbered dat files
+        const extension = parts.next() orelse return error.InvalidSqPackFilename; // Extension is the third section, which is a string. It's parsed as a FileExtension but has special handling for numbered dat files
 
         if (bundle_str.len != 6) {
             return error.InvalidSqPackFilename;
@@ -112,8 +112,8 @@ pub const PathUtils = struct {
 
         // Resolve the file type, with special handling for dat files
         var file_index: ?u8 = null;
-        const file_type: ?FileType = FileType.fromString(extension) orelse blk: {
-            if (std.mem.startsWith(u8, extension, FileType.dat.toString())) {
+        const file_type: ?FileExtension = FileExtension.fromString(extension) orelse blk: {
+            if (std.mem.startsWith(u8, extension, FileExtension.dat.toString())) {
                 file_index = try std.fmt.parseInt(u8, extension[3..], 10);
                 break :blk .dat;
             }
@@ -121,7 +121,7 @@ pub const PathUtils = struct {
         };
 
         if (file_type == null) {
-            return error.InvalidFileType;
+            return error.InvalidFileExtension;
         }
 
         // Return the parsed file name
@@ -179,7 +179,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(6),
             2,
             Platform.win32,
-            FileType.index,
+            FileExtension.index,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -195,7 +195,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(6),
             2,
             Platform.win32,
-            FileType.index2,
+            FileExtension.index2,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -211,7 +211,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(1),
             3,
             Platform.ps5,
-            FileType.dat,
+            FileExtension.dat,
             0,
         );
         defer std.testing.allocator.free(result);
@@ -235,7 +235,7 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.repoFromId(6),
             .chunk_id = 2,
             .platform = Platform.win32,
-            .file_type = FileType.index,
+            .file_type = FileExtension.index,
             .file_idx = null,
         };
         const result = try PathUtils.parseSqPackFileName("040602.win32.index");
@@ -249,7 +249,7 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.repoFromId(6),
             .chunk_id = 2,
             .platform = Platform.ps5,
-            .file_type = FileType.dat,
+            .file_type = FileExtension.dat,
             .file_idx = 3,
         };
         const result = try PathUtils.parseSqPackFileName("040602.ps5.dat3");
