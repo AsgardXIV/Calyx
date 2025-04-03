@@ -18,30 +18,42 @@ pub const FileType = enum(u32) {
 };
 
 pub const FileInfo = extern struct {
-    size: u32,
+    header_size: u32,
     file_type: FileType,
     file_size: u32,
-    _padding0: u32,
-    _padding1: u32,
+};
+
+pub const StandardFileInfo = extern struct {
+    _padding0: [8]u8,
     num_of_blocks: u32,
 };
 
-pub const DatBlockInfo = extern struct {
+pub const TextureFileInfo = StandardFileInfo;
+
+pub const StandardFileBlockInfo = extern struct {
     offset: u32,
     compressed_size: u16,
     uncompressed_size: u16,
 };
 
-pub const DatBlockType = enum(u32) {
+pub const TextureFileBlockInfo = extern struct {
+    compressed_offset: u32,
+    compressed_size: u32,
+    decompressed_size: u32,
+    block_offset: u32,
+    block_count: u32,
+};
+
+pub const BlockType = enum(u32) {
     compressed = 16000,
     uncompressed = 32000,
     _,
 };
 
-pub const DatBlockHeader = extern struct {
+pub const BlockHeader = extern struct {
     size: u32,
     _padding0: u32,
-    block_type: DatBlockType,
+    block_type: BlockType,
     data_size: u32,
 };
 
@@ -93,7 +105,7 @@ pub const DatFile = struct {
             .empty => {},
             .standard => try self.readStandardFile(offset, file_info, &stream),
             .model => {},
-            .texture => {},
+            .texture => try self.readTextureFile(offset, file_info, &stream),
             else => return error.InvalidFileExtension,
         }
 
@@ -106,32 +118,79 @@ pub const DatFile = struct {
     fn readStandardFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
 
+        // Read the standard file info
+        const standard_file_info = try reader.readStruct(StandardFileInfo);
+
         // First we need to allocate space for the block infos
-        const block_count = file_info.num_of_blocks;
-        const blocks = try self.allocator.alloc(DatBlockInfo, block_count);
+        const block_count = standard_file_info.num_of_blocks;
+        const blocks = try self.allocator.alloc(StandardFileBlockInfo, block_count);
         defer self.allocator.free(blocks);
 
         // Read the block info structs
         for (blocks) |*block| {
-            block.* = try reader.readStruct(DatBlockInfo);
+            block.* = try reader.readStruct(StandardFileBlockInfo);
         }
 
         // Now we can read the actual blocks
         for (blocks) |*block| {
-            const calculated_offset = base_offset + file_info.size + block.offset;
-            try self.readFileBlock(calculated_offset, block, stream);
+            const calculated_offset = base_offset + file_info.header_size + block.offset;
+            try self.readFileBlock(calculated_offset, stream);
         }
     }
 
-    fn readFileBlock(self: *Self, offset: u64, block_info: *DatBlockInfo, stream: *FileStream) !void {
-        _ = block_info;
+    fn readTextureFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+        const reader = self.file.reader();
+
+        // Read the texture file info
+        const texture_file_info = try reader.readStruct(TextureFileInfo);
+
+        // First we need to allocate space for the block infos
+        const block_count = texture_file_info.num_of_blocks;
+        const blocks = try self.allocator.alloc(TextureFileBlockInfo, block_count);
+        defer self.allocator.free(blocks);
+
+        // Read the block info structs
+        for (blocks) |*block| {
+            block.* = try reader.readStruct(TextureFileBlockInfo);
+        }
+
+        // Read mip data
+        const mipSize = blocks[0].compressed_offset;
+        if (mipSize != 0) {
+            const original_position = try self.file.getPos();
+
+            try self.file.seekTo(base_offset + file_info.header_size);
+            const slice = stream.buffer[stream.pos..][0..mipSize];
+            const bytes_read = try reader.readAll(slice);
+            stream.pos += bytes_read;
+
+            try self.file.seekTo(original_position);
+        }
+
+        // Now we can read the actual blocks
+        for (blocks) |*block| {
+            var running_total: u64 = base_offset + file_info.header_size + block.compressed_offset;
+            for (0..block.block_count) |_| {
+                const original_position = try self.file.getPos();
+
+                try self.readFileBlock(running_total, stream);
+
+                try self.file.seekTo(original_position);
+
+                const block_size = try reader.readInt(u16, .little);
+                running_total += block_size;
+            }
+        }
+    }
+
+    fn readFileBlock(self: *Self, offset: u64, stream: *FileStream) !void {
         const reader = self.file.reader();
 
         // We need to seek to the block offset
         try self.file.seekTo(offset);
 
         // Read the block header
-        const block_header = try reader.readStruct(DatBlockHeader);
+        const block_header = try reader.readStruct(BlockHeader);
 
         // Check if the block is compressed or uncompressed
         if (block_header.block_type == .uncompressed) {

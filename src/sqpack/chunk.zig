@@ -13,7 +13,7 @@ const PathUtils = path_utils.PathUtils;
 const ParsedGamePath = path_utils.ParsedGamePath;
 const FileLookupResult = path_utils.FileLookupResult;
 
-const DatFile = @import("virtual_file.zig").DatFile;
+const DatFile = @import("dat_file.zig").DatFile;
 
 pub const Chunk = struct {
     const Self = @This();
