@@ -315,7 +315,7 @@ pub const DatFile = struct {
 
         for (0..size) |_| {
             const last_pos = try self.file.getPos();
-            _ = try self.readFileBlock(last_pos, stream);
+            _ = try self.readFileBlock(null, stream);
             try self.file.seekTo(last_pos + compressed_block_sizes[current_block]);
             current_block += 1;
         }
@@ -338,7 +338,7 @@ pub const DatFile = struct {
 
             for (0..size) |_| {
                 const last_pos = try self.file.getPos();
-                const bytes_read = try self.readFileBlock(last_pos, stream);
+                const bytes_read = try self.readFileBlock(null, stream);
                 data_sizes[lod] += @intCast(bytes_read);
 
                 try self.file.seekTo(last_pos + compressed_block_sizes[current_block]);
@@ -349,11 +349,16 @@ pub const DatFile = struct {
         return current_block;
     }
 
-    fn readFileBlock(self: *Self, offset: u64, stream: *FileStream) !u64 {
-        const reader = self.file.reader();
-
+    fn readFileBlock(self: *Self, offset: ?u64, stream: *FileStream) !u64 {
         // We need to seek to the block offset
-        try self.file.seekTo(offset);
+        if (offset) |x| {
+            try self.file.seekTo(x);
+        }
+
+        // Create a buffered reader for the file
+        const raw_reader = self.file.reader();
+        var buffered_reader = std.io.bufferedReader(raw_reader);
+        const reader = buffered_reader.reader();
 
         // Read the block header
         const block_header = try reader.readStruct(BlockHeader);
