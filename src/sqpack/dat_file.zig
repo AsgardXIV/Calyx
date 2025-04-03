@@ -135,14 +135,16 @@ pub const DatFile = struct {
 
     fn readStandardFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
+        var sfb = std.heap.stackFallback(4096, self.allocator);
+        const sfa = sfb.get();
 
         // Read the standard file info
         const standard_file_info = try reader.readStruct(StandardFileInfo);
 
         // First we need to allocate space for the block infos
         const block_count = standard_file_info.num_of_blocks;
-        const blocks = try self.allocator.alloc(StandardFileBlockInfo, block_count);
-        defer self.allocator.free(blocks);
+        const blocks = try sfa.alloc(StandardFileBlockInfo, block_count);
+        defer sfa.free(blocks);
 
         // Read the block info structs
         for (blocks) |*block| {
@@ -157,6 +159,9 @@ pub const DatFile = struct {
     }
 
     fn readTextureFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+        var sfb = std.heap.stackFallback(4096, self.allocator);
+        const sfa = sfb.get();
+
         const reader = self.file.reader();
 
         // Read the texture file info
@@ -164,8 +169,8 @@ pub const DatFile = struct {
 
         // First we need to allocate space for the block infos
         const block_count = texture_file_info.num_of_blocks;
-        const blocks = try self.allocator.alloc(TextureFileBlockInfo, block_count);
-        defer self.allocator.free(blocks);
+        const blocks = try sfa.alloc(TextureFileBlockInfo, block_count);
+        defer sfa.free(blocks);
 
         // Read the block info structs
         for (blocks) |*block| {
@@ -206,6 +211,9 @@ pub const DatFile = struct {
     }
 
     fn readModelFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+        var sfb = std.heap.stackFallback(4096, self.allocator);
+        const sfa = sfb.get();
+
         const reader = self.file.reader();
 
         // Read the model file info
@@ -215,8 +223,8 @@ pub const DatFile = struct {
         const total_blocks = model_file_info.num.calculateTotal();
 
         // Allocate and assign the block sizes
-        const compressed_block_sizes = try self.allocator.alloc(u16, total_blocks);
-        defer self.allocator.free(compressed_block_sizes);
+        const compressed_block_sizes = try sfa.alloc(u16, total_blocks);
+        defer sfa.free(compressed_block_sizes);
         for (compressed_block_sizes) |*block| {
             block.* = try reader.readInt(u16, .little);
         }
@@ -379,7 +387,10 @@ pub const DatFile = struct {
     }
 
     fn mountDatFile(self: *Self) !void {
-        const file_name = try PathUtils.buildSqPackFileNameTyped(self.allocator, .{
+        var sfb = std.heap.stackFallback(2048, self.allocator);
+        const sfa = sfb.get();
+
+        const file_name = try PathUtils.buildSqPackFileNameTyped(sfa, .{
             .platform = self.chunk.category.repository.pack.game_data.platform,
             .repo_id = self.chunk.category.repository.repo_id,
             .category_id = self.chunk.category.category_id,
@@ -387,10 +398,10 @@ pub const DatFile = struct {
             .file_type = .dat,
             .file_idx = self.file_id,
         });
-        defer self.allocator.free(file_name);
+        defer sfa.free(file_name);
 
-        const file_path = try std.fs.path.join(self.allocator, &.{ self.chunk.category.repository.repo_path, file_name });
-        defer self.allocator.free(file_path);
+        const file_path = try std.fs.path.join(sfa, &.{ self.chunk.category.repository.repo_path, file_name });
+        defer sfa.free(file_path);
 
         self.file = try std.fs.openFileAbsolute(file_path, .{ .mode = .read_only });
     }

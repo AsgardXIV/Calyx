@@ -71,14 +71,17 @@ pub const Repository = struct {
     }
 
     fn setupVersion(self: *Self) !void {
-        const repo_name = try self.repo_id.toString(self.allocator);
-        defer self.allocator.free(repo_name);
+        var sfb = std.heap.stackFallback(2048, self.allocator);
+        const sfa = sfb.get();
 
-        const version_file_name = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ repo_name, FileExtension.ver.toString() });
-        defer self.allocator.free(version_file_name);
+        const repo_name = try self.repo_id.toString(sfa);
+        defer sfa.free(repo_name);
 
-        const version_file_path = try std.fs.path.join(self.allocator, &.{ self.repo_path, version_file_name });
-        defer self.allocator.free(version_file_path);
+        const version_file_name = try std.fmt.allocPrint(sfa, "{s}.{s}", .{ repo_name, FileExtension.ver.toString() });
+        defer sfa.free(version_file_name);
+
+        const version_file_path = try std.fs.path.join(sfa, &.{ self.repo_path, version_file_name });
+        defer sfa.free(version_file_path);
 
         self.repo_version = GameVersion.parseFromFilePath(version_file_path) catch self.pack.game_data.version;
     }
@@ -86,9 +89,6 @@ pub const Repository = struct {
     fn discoverChunks(self: *Self) !void {
         var folder = try std.fs.openDirAbsolute(self.repo_path, .{ .iterate = true, .no_follow = true });
         defer folder.close();
-
-        var discovered_unique: std.AutoHashMapUnmanaged(struct { category_id: CategoryId, chunk_id: u8 }, void) = .{};
-        defer discovered_unique.deinit(self.allocator);
 
         errdefer self.cleanupCategories(); // Cleanup on error
 

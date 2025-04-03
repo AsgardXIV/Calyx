@@ -97,7 +97,10 @@ pub const Chunk = struct {
     }
 
     fn setupIndex(self: *Self, comptime T: type) !*index.Index(T) {
-        const index_filename = try PathUtils.buildSqPackFileNameTyped(self.allocator, .{
+        var sfb = std.heap.stackFallback(2048, self.allocator);
+        const sfa = sfb.get();
+
+        const index_filename = try PathUtils.buildSqPackFileNameTyped(sfa, .{
             .chunk_id = self.chunk_id,
             .file_type = T.IndexFileExtension,
             .category_id = self.category.category_id,
@@ -105,10 +108,10 @@ pub const Chunk = struct {
             .repo_id = self.category.repository.repo_id,
             .file_idx = null,
         });
-        defer self.allocator.free(index_filename);
+        defer sfa.free(index_filename);
 
-        const index_path = try std.fs.path.join(self.allocator, &.{ self.category.repository.repo_path, index_filename });
-        defer self.allocator.free(index_path);
+        const index_path = try std.fs.path.join(sfa, &.{ self.category.repository.repo_path, index_filename });
+        defer sfa.free(index_path);
 
         const index_file = std.fs.openFileAbsolute(index_path, .{ .mode = .read_only }) catch null;
         defer if (index_file) |file| file.close();
