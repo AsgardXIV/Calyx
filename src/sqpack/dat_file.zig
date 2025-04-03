@@ -109,9 +109,6 @@ pub const DatFile = struct {
             else => return error.InvalidFileExtension,
         }
 
-        // Leave in a neutral position
-        try self.file.seekTo(0);
-
         return raw_bytes;
     }
 
@@ -171,14 +168,18 @@ pub const DatFile = struct {
         for (blocks) |*block| {
             var running_total: u64 = base_offset + file_info.header_size + block.compressed_offset;
             for (0..block.block_count) |_| {
+                // Remember position again
                 const original_position = try self.file.getPos();
 
+                // Read the actual block
                 try self.readFileBlock(running_total, stream);
 
+                // Go back to the original position
                 try self.file.seekTo(original_position);
 
-                const block_size = try reader.readInt(u16, .little);
-                running_total += block_size;
+                // Get the offset to the next block and add it to the running total
+                const offset_to_next = try reader.readInt(u16, .little);
+                running_total += offset_to_next;
             }
         }
     }
