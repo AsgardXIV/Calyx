@@ -1,6 +1,5 @@
 const std = @import("std");
 
-const Platform = @import("../common/platform.zig").Platform;
 const FileExtension = @import("file_extension.zig").FileExtension;
 
 const path_utils = @import("path_utils.zig");
@@ -9,16 +8,9 @@ const FileLookupResult = path_utils.FileLookupResult;
 
 const Chunk = @import("chunk.zig").Chunk;
 
-const Allocator = std.mem.Allocator;
+const SqPackHeader = @import("sqpack.zig").SqPackHeader;
 
-pub const SqPackHeader = extern struct {
-    magic: [8]u8,
-    platform: Platform,
-    _padding0: [3]u8,
-    size: u32,
-    version: u32,
-    pack_type: u32,
-};
+const Allocator = std.mem.Allocator;
 
 pub const SqPackIndexHeader = extern struct {
     size: u32,
@@ -109,6 +101,7 @@ pub fn Index(comptime EntryType: type) type {
 
             // Read the pack header
             self.pack_header = try reader.readStruct(SqPackHeader);
+            try self.pack_header.validateMagic();
             _ = try file.seekTo(self.pack_header.size);
 
             // Read the index header

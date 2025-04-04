@@ -9,6 +9,8 @@ const PathUtils = path_utils.PathUtils;
 
 const FileStream = std.io.FixedBufferStream([]u8);
 
+const SqPackHeader = @import("sqpack.zig").SqPackHeader;
+
 pub const FileType = enum(u32) {
     empty = 0x1,
     standard = 0x2,
@@ -404,6 +406,9 @@ pub const DatFile = struct {
         defer sfa.free(file_path);
 
         self.file = try std.fs.openFileAbsolute(file_path, .{ .mode = .read_only });
+
+        const header = try self.file.reader().readStruct(SqPackHeader);
+        try header.validateMagic();
     }
 };
 
