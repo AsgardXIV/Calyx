@@ -139,11 +139,9 @@ pub const PathUtils = struct {
     pub fn parseGamePath(raw_path: []const u8) !ParsedGamePath {
         // Lowercase
         var buffer: [1024]u8 = undefined;
-        const len = raw_path.len;
-        @memcpy(buffer[0..len], raw_path[0..len]);
-        const mutable_path = buffer[0..len];
-        String.toLowerCase(mutable_path);
-        const path: []const u8 = mutable_path;
+        @memcpy(buffer[0..raw_path.len], raw_path[0..raw_path.len]);
+        String.toLowerCase(buffer[0..raw_path.len]);
+        const path: []const u8 = buffer[0..raw_path.len];
 
         // Index 2 hash is easy
         const index2_hash = crc32(path);
