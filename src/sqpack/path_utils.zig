@@ -5,6 +5,7 @@ const CategoryId = @import("category_id.zig").CategoryId;
 const FileExtension = @import("file_extension.zig").FileExtension;
 const Platform = @import("../common/platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
+const String = @import("../core/string.zig").String;
 
 pub const ParsedGamePath = struct {
     category_id: CategoryId,
@@ -135,7 +136,15 @@ pub const PathUtils = struct {
         };
     }
 
-    pub fn parseGamePath(path: []const u8) !ParsedGamePath {
+    pub fn parseGamePath(raw_path: []const u8) !ParsedGamePath {
+        // Lowercase
+        var buffer: [1024]u8 = undefined;
+        const len = raw_path.len;
+        @memcpy(buffer[0..len], raw_path[0..len]);
+        const mutable_path = buffer[0..len];
+        String.toLowerCase(mutable_path);
+        const path: []const u8 = mutable_path;
+
         // Index 2 hash is easy
         const index2_hash = crc32(path);
 
@@ -294,6 +303,19 @@ test "parseGamePath" {
             .index2_hash = 0x32ca2200,
         };
         const result = try PathUtils.parseGamePath("chara/beep.dat");
+        try std.testing.expectEqual(expected, result);
+    }
+
+    {
+        // Path casing is ignored
+
+        const expected = ParsedGamePath{
+            .category_id = CategoryId.chara,
+            .repo_id = RepositoryId.repoFromId(0),
+            .index1_hash = 0x7774313e54cbce06,
+            .index2_hash = 0x32ca2200,
+        };
+        const result = try PathUtils.parseGamePath("cHAra/bEEp.daT");
         try std.testing.expectEqual(expected, result);
     }
 
