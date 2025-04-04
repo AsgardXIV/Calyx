@@ -9,15 +9,19 @@ const PathUtils = path_utils.PathUtils;
 
 const FileStream = std.io.FixedBufferStream([]u8);
 
+const BufferedFileReader = @import("../core/buffered_file_reader.zig").BufferedFileReader;
+
 const types = @import("types.zig");
 
 pub const DatFile = struct {
     const Self = @This();
+    const DatFileReader = BufferedFileReader(4096);
 
     allocator: Allocator,
     chunk: *Chunk,
     file_id: u8,
-    file: std.fs.File,
+    file: DatFileReader,
+    reader: DatFileReader.Reader,
 
     pub fn init(allocator: Allocator, chunk: *Chunk, file_id: u8) !*Self {
         const self = try allocator.create(Self);
@@ -28,6 +32,7 @@ pub const DatFile = struct {
             .chunk = chunk,
             .file_id = file_id,
             .file = undefined,
+            .reader = undefined,
         };
 
         try self.mountDatFile();
@@ -41,13 +46,11 @@ pub const DatFile = struct {
     }
 
     pub fn readFile(self: *Self, allocator: Allocator, offset: u64) ![]const u8 {
-        const reader = self.file.reader();
-
         // Jump to the specified offset where the file header starts
         try self.file.seekTo(offset);
 
         // Get the file info
-        const file_info = try reader.readStruct(types.FileInfo);
+        const file_info = try self.reader.readStruct(types.FileInfo);
 
         // We can allocate the raw bytes up front
         const raw_bytes = try allocator.alloc(u8, file_info.file_size);
@@ -67,12 +70,11 @@ pub const DatFile = struct {
     }
 
     fn readStandardFile(self: *Self, base_offset: u64, file_info: types.FileInfo, stream: *FileStream) !void {
-        const reader = self.file.reader();
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
         // Read the standard file info
-        const standard_file_info = try reader.readStruct(types.StandardFileInfo);
+        const standard_file_info = try self.reader.readStruct(types.StandardFileInfo);
 
         // First we need to allocate space for the block infos
         const block_count = standard_file_info.num_of_blocks;
@@ -81,7 +83,7 @@ pub const DatFile = struct {
 
         // Read the block info structs
         for (blocks) |*block| {
-            block.* = try reader.readStruct(types.StandardFileBlockInfo);
+            block.* = try self.reader.readStruct(types.StandardFileBlockInfo);
         }
 
         // Now we can read the actual blocks
@@ -95,10 +97,8 @@ pub const DatFile = struct {
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
-        const reader = self.file.reader();
-
         // Read the texture file info
-        const texture_file_info = try reader.readStruct(types.TextureFileInfo);
+        const texture_file_info = try self.reader.readStruct(types.TextureFileInfo);
 
         // First we need to allocate space for the block infos
         const block_count = texture_file_info.num_of_blocks;
@@ -107,17 +107,17 @@ pub const DatFile = struct {
 
         // Read the block info structs
         for (blocks) |*block| {
-            block.* = try reader.readStruct(types.TextureFileBlockInfo);
+            block.* = try self.reader.readStruct(types.TextureFileBlockInfo);
         }
 
         // Read mip data
         const mipSize = blocks[0].compressed_offset;
         if (mipSize != 0) {
-            const original_position = try self.file.getPos();
+            const original_position = self.file.getPos();
 
             try self.file.seekTo(base_offset + file_info.header_size);
             const slice = stream.buffer[stream.pos..][0..mipSize];
-            const bytes_read = try reader.readAll(slice);
+            const bytes_read = try self.reader.readAll(slice);
             stream.pos += bytes_read;
 
             try self.file.seekTo(original_position);
@@ -128,7 +128,7 @@ pub const DatFile = struct {
             var running_total: u64 = base_offset + file_info.header_size + block.compressed_offset;
             for (0..block.block_count) |_| {
                 // Remember position again
-                const original_position = try self.file.getPos();
+                const original_position = self.file.getPos();
 
                 // Read the actual block
                 _ = try self.readFileBlock(running_total, stream);
@@ -137,7 +137,7 @@ pub const DatFile = struct {
                 try self.file.seekTo(original_position);
 
                 // Get the offset to the next block and add it to the running total
-                const offset_to_next = try reader.readInt(u16, .little);
+                const offset_to_next = try self.reader.readInt(u16, .little);
                 running_total += offset_to_next;
             }
         }
@@ -147,10 +147,8 @@ pub const DatFile = struct {
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
-        const reader = self.file.reader();
-
         // Read the model file info
-        const model_file_info = try reader.readStruct(types.ModelFileInfo);
+        const model_file_info = try self.reader.readStruct(types.ModelFileInfo);
 
         // Calculate total blocks
         const total_blocks = model_file_info.num.calculateTotal();
@@ -159,7 +157,7 @@ pub const DatFile = struct {
         const compressed_block_sizes = try sfa.alloc(u16, total_blocks);
         defer sfa.free(compressed_block_sizes);
         for (compressed_block_sizes) |*block| {
-            block.* = try reader.readInt(u16, .little);
+            block.* = try self.reader.readInt(u16, .little);
         }
 
         var vertex_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
@@ -255,7 +253,7 @@ pub const DatFile = struct {
         try self.file.seekTo(offset);
 
         for (0..size) |_| {
-            const last_pos = try self.file.getPos();
+            const last_pos = self.file.getPos();
             _ = try self.readFileBlock(null, stream);
             try self.file.seekTo(last_pos + compressed_block_sizes[current_block]);
             current_block += 1;
@@ -278,7 +276,7 @@ pub const DatFile = struct {
             try self.file.seekTo(offset);
 
             for (0..size) |_| {
-                const last_pos = try self.file.getPos();
+                const last_pos = self.file.getPos();
                 const bytes_read = try self.readFileBlock(null, stream);
                 data_sizes[lod] += @intCast(bytes_read);
 
@@ -296,25 +294,20 @@ pub const DatFile = struct {
             try self.file.seekTo(x);
         }
 
-        // Create a buffered reader for the file
-        const raw_reader = self.file.reader();
-        var buffered_reader = std.io.bufferedReader(raw_reader);
-        const reader = buffered_reader.reader();
-
         // Read the block header
-        const block_header = try reader.readStruct(types.BlockHeader);
+        const block_header = try self.reader.readStruct(types.BlockHeader);
 
         // Check if the block is compressed or uncompressed
         if (block_header.block_type == .uncompressed) {
             // Uncompressed block so we just copy the bytes
             const slice = stream.buffer[stream.pos..][0..block_header.data_size];
-            const bytes_read = try reader.readAll(slice);
+            const bytes_read = try self.reader.readAll(slice);
             stream.pos += bytes_read;
             return bytes_read;
         } else {
             // Compressed block so we need to decompress it
             const initial_pos = stream.pos;
-            try std.compress.flate.decompress(reader, stream.writer());
+            try std.compress.flate.decompress(self.reader, stream.writer());
             return stream.pos - initial_pos;
         }
     }
@@ -336,7 +329,8 @@ pub const DatFile = struct {
         const file_path = try std.fs.path.join(sfa, &.{ self.chunk.category.repository.repo_path, file_name });
         defer sfa.free(file_path);
 
-        self.file = try std.fs.openFileAbsolute(file_path, .{ .mode = .read_only });
+        self.file = try DatFileReader.init(file_path);
+        self.reader = self.file.reader();
 
         const header = try self.file.reader().readStruct(types.SqPackHeader);
         try header.validateMagic();
