@@ -14,28 +14,6 @@ const RepositoryId = @import("repository_id.zig").RepositoryId;
 
 const CategoryId = @import("category_id.zig").CategoryId;
 
-const Platform = @import("../common/platform.zig").Platform;
-
-pub const SqPackHeader = extern struct {
-    const Self = @This();
-    const expected_magic = [8]u8{ 'S', 'q', 'P', 'a', 'c', 'k', 0, 0 };
-
-    magic: [8]u8,
-    platform: Platform,
-    _padding0: [3]u8,
-    size: u32,
-    version: u32,
-    pack_type: u32,
-
-    pub fn validateMagic(self: *const Self) !void {
-        if (std.mem.eql(u8, &self.magic, &expected_magic)) {
-            return;
-        } else {
-            return error.InvalidMagic;
-        }
-    }
-};
-
 pub const SqPack = struct {
     const Self = @This();
 

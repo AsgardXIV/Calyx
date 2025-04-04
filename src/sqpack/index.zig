@@ -8,7 +8,7 @@ const FileLookupResult = path_utils.FileLookupResult;
 
 const Chunk = @import("chunk.zig").Chunk;
 
-const SqPackHeader = @import("sqpack.zig").SqPackHeader;
+const SqPackHeader = @import("types.zig").SqPackHeader;
 
 const Allocator = std.mem.Allocator;
 

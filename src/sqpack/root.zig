@@ -8,3 +8,4 @@ pub usingnamespace @import("path_utils.zig");
 pub usingnamespace @import("repository.zig");
 pub usingnamespace @import("repository_id.zig");
 pub usingnamespace @import("sqpack.zig");
+pub usingnamespace @import("types.zig");

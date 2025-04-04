@@ -9,76 +9,7 @@ const PathUtils = path_utils.PathUtils;
 
 const FileStream = std.io.FixedBufferStream([]u8);
 
-const SqPackHeader = @import("sqpack.zig").SqPackHeader;
-
-pub const FileType = enum(u32) {
-    empty = 0x1,
-    standard = 0x2,
-    model = 0x3,
-    texture = 0x4,
-    _,
-};
-
-pub const FileInfo = extern struct {
-    header_size: u32,
-    file_type: FileType,
-    file_size: u32,
-};
-
-pub const StandardFileInfo = extern struct {
-    _padding0: [8]u8,
-    num_of_blocks: u32,
-};
-
-pub const TextureFileInfo = StandardFileInfo;
-
-pub const ModelFileInfo = extern struct {
-    pub const lod_levels = 3;
-
-    num_of_blocks: u32,
-    used_num_of_blocks: u32,
-    version: u32,
-
-    uncompressed_size: ModelFileMemorySizes(u32, lod_levels),
-    compressed_size: ModelFileMemorySizes(u32, lod_levels),
-    offset: ModelFileMemorySizes(u32, lod_levels),
-    index: ModelFileMemorySizes(u16, lod_levels),
-    num: ModelFileMemorySizes(u16, lod_levels),
-
-    vertex_declaration_num: u16,
-    material_num: u16,
-    num_lods: u8,
-
-    index_buffer_streaming_enabled: bool,
-    edge_geometry_enabled: bool,
-};
-
-pub const StandardFileBlockInfo = extern struct {
-    offset: u32,
-    compressed_size: u16,
-    uncompressed_size: u16,
-};
-
-pub const TextureFileBlockInfo = extern struct {
-    compressed_offset: u32,
-    compressed_size: u32,
-    decompressed_size: u32,
-    block_offset: u32,
-    block_count: u32,
-};
-
-pub const BlockType = enum(u32) {
-    compressed = 16000,
-    uncompressed = 32000,
-    _,
-};
-
-pub const BlockHeader = extern struct {
-    size: u32,
-    _padding0: u32,
-    block_type: BlockType,
-    data_size: u32,
-};
+const types = @import("types.zig");
 
 pub const DatFile = struct {
     const Self = @This();
@@ -116,7 +47,7 @@ pub const DatFile = struct {
         try self.file.seekTo(offset);
 
         // Get the file info
-        const file_info = try reader.readStruct(FileInfo);
+        const file_info = try reader.readStruct(types.FileInfo);
 
         // We can allocate the raw bytes up front
         const raw_bytes = try allocator.alloc(u8, file_info.file_size);
@@ -135,22 +66,22 @@ pub const DatFile = struct {
         return raw_bytes;
     }
 
-    fn readStandardFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+    fn readStandardFile(self: *Self, base_offset: u64, file_info: types.FileInfo, stream: *FileStream) !void {
         const reader = self.file.reader();
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
         // Read the standard file info
-        const standard_file_info = try reader.readStruct(StandardFileInfo);
+        const standard_file_info = try reader.readStruct(types.StandardFileInfo);
 
         // First we need to allocate space for the block infos
         const block_count = standard_file_info.num_of_blocks;
-        const blocks = try sfa.alloc(StandardFileBlockInfo, block_count);
+        const blocks = try sfa.alloc(types.StandardFileBlockInfo, block_count);
         defer sfa.free(blocks);
 
         // Read the block info structs
         for (blocks) |*block| {
-            block.* = try reader.readStruct(StandardFileBlockInfo);
+            block.* = try reader.readStruct(types.StandardFileBlockInfo);
         }
 
         // Now we can read the actual blocks
@@ -160,23 +91,23 @@ pub const DatFile = struct {
         }
     }
 
-    fn readTextureFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+    fn readTextureFile(self: *Self, base_offset: u64, file_info: types.FileInfo, stream: *FileStream) !void {
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
         const reader = self.file.reader();
 
         // Read the texture file info
-        const texture_file_info = try reader.readStruct(TextureFileInfo);
+        const texture_file_info = try reader.readStruct(types.TextureFileInfo);
 
         // First we need to allocate space for the block infos
         const block_count = texture_file_info.num_of_blocks;
-        const blocks = try sfa.alloc(TextureFileBlockInfo, block_count);
+        const blocks = try sfa.alloc(types.TextureFileBlockInfo, block_count);
         defer sfa.free(blocks);
 
         // Read the block info structs
         for (blocks) |*block| {
-            block.* = try reader.readStruct(TextureFileBlockInfo);
+            block.* = try reader.readStruct(types.TextureFileBlockInfo);
         }
 
         // Read mip data
@@ -212,14 +143,14 @@ pub const DatFile = struct {
         }
     }
 
-    fn readModelFile(self: *Self, base_offset: u64, file_info: FileInfo, stream: *FileStream) !void {
+    fn readModelFile(self: *Self, base_offset: u64, file_info: types.FileInfo, stream: *FileStream) !void {
         var sfb = std.heap.stackFallback(4096, self.allocator);
         const sfa = sfb.get();
 
         const reader = self.file.reader();
 
         // Read the model file info
-        const model_file_info = try reader.readStruct(ModelFileInfo);
+        const model_file_info = try reader.readStruct(types.ModelFileInfo);
 
         // Calculate total blocks
         const total_blocks = model_file_info.num.calculateTotal();
@@ -231,14 +162,14 @@ pub const DatFile = struct {
             block.* = try reader.readInt(u16, .little);
         }
 
-        var vertex_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
-        var vertex_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
+        var vertex_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var vertex_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
 
-        var edge_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
-        var edge_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
+        var edge_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var edge_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
 
-        var index_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
-        var index_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
+        var index_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var index_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
 
         // Start writing at 0x44 apparently
         stream.pos = 0x44;
@@ -255,7 +186,7 @@ pub const DatFile = struct {
         current_block = runtime_result.next_block;
         const runtime_size: u32 = @intCast(runtime_result.size);
 
-        for (0..ModelFileInfo.lod_levels) |lod| {
+        for (0..types.ModelFileInfo.lod_levels) |lod| {
             const vertex_offset = base_offset + file_info.header_size + model_file_info.offset.vertex_buffer_size[lod];
             current_block = try self.processModelData(
                 lod,
@@ -333,7 +264,7 @@ pub const DatFile = struct {
         return .{ .size = stack_size, .next_block = current_block };
     }
 
-    fn processModelData(self: *Self, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[ModelFileInfo.lod_levels]u32, data_sizes: *[ModelFileInfo.lod_levels]u32, compressed_block_sizes: []u16, stream: *FileStream) !u32 {
+    fn processModelData(self: *Self, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[types.ModelFileInfo.lod_levels]u32, data_sizes: *[types.ModelFileInfo.lod_levels]u32, compressed_block_sizes: []u16, stream: *FileStream) !u32 {
         var current_block = start_block;
         offsets[lod] = 0;
         data_sizes[lod] = 0;
@@ -371,7 +302,7 @@ pub const DatFile = struct {
         const reader = buffered_reader.reader();
 
         // Read the block header
-        const block_header = try reader.readStruct(BlockHeader);
+        const block_header = try reader.readStruct(types.BlockHeader);
 
         // Check if the block is compressed or uncompressed
         if (block_header.block_type == .uncompressed) {
@@ -407,38 +338,7 @@ pub const DatFile = struct {
 
         self.file = try std.fs.openFileAbsolute(file_path, .{ .mode = .read_only });
 
-        const header = try self.file.reader().readStruct(SqPackHeader);
+        const header = try self.file.reader().readStruct(types.SqPackHeader);
         try header.validateMagic();
     }
 };
-
-fn ModelFileMemorySizes(comptime T: type, comptime count: usize) type {
-    return extern struct {
-        const Self = @This();
-
-        stack_size: T,
-        runtime_size: T,
-
-        vertex_buffer_size: [count]T,
-        edge_geometry_vertex_buffer_size: [count]T,
-        index_buffer_size: [count]T,
-
-        pub fn calculateTotal(self: *const Self) T {
-            var total: T = 0;
-            total += self.stack_size;
-            total += self.runtime_size;
-
-            for (self.vertex_buffer_size) |size| {
-                total += size;
-            }
-            for (self.edge_geometry_vertex_buffer_size) |size| {
-                total += size;
-            }
-            for (self.index_buffer_size) |size| {
-                total += size;
-            }
-
-            return total;
-        }
-    };
-}
