@@ -2,10 +2,11 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const CategoryId = @import("category_id.zig").CategoryId;
-const FileExtension = @import("file_extension.zig").FileExtension;
 const Platform = @import("../common/platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const String = @import("../core/string.zig").String;
+
+const types = @import("types.zig");
 
 pub const ParsedGamePath = struct {
     category_id: CategoryId,
@@ -19,7 +20,7 @@ pub const ParsedSqPackFileName = struct {
     repo_id: RepositoryId,
     chunk_id: u8,
     platform: Platform,
-    file_type: FileExtension,
+    file_type: types.SqPackFileExtension,
     file_idx: ?u8,
 };
 
@@ -42,7 +43,7 @@ pub const PathUtils = struct {
         repo_id: RepositoryId,
         chunk_id: u8,
         platform: Platform,
-        file_type: FileExtension,
+        file_type: types.SqPackFileExtension,
         file_idx: ?u8,
     ) ![]const u8 {
         return try buildSqPackFileNameTyped(
@@ -113,8 +114,8 @@ pub const PathUtils = struct {
 
         // Resolve the file type, with special handling for dat files
         var file_index: ?u8 = null;
-        const file_type: ?FileExtension = FileExtension.fromString(extension) orelse blk: {
-            if (std.mem.startsWith(u8, extension, FileExtension.dat.toString())) {
+        const file_type: ?types.SqPackFileExtension = types.SqPackFileExtension.fromString(extension) orelse blk: {
+            if (std.mem.startsWith(u8, extension, types.SqPackFileExtension.dat.toString())) {
                 file_index = try std.fmt.parseInt(u8, extension[3..], 10);
                 break :blk .dat;
             }
@@ -186,7 +187,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(6),
             2,
             Platform.win32,
-            FileExtension.index,
+            types.SqPackFileExtension.index,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -202,7 +203,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(6),
             2,
             Platform.win32,
-            FileExtension.index2,
+            types.SqPackFileExtension.index2,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -218,7 +219,7 @@ test "buildSqPackFileName" {
             RepositoryId.repoFromId(1),
             3,
             Platform.ps5,
-            FileExtension.dat,
+            types.SqPackFileExtension.dat,
             0,
         );
         defer std.testing.allocator.free(result);
@@ -242,7 +243,7 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.repoFromId(6),
             .chunk_id = 2,
             .platform = Platform.win32,
-            .file_type = FileExtension.index,
+            .file_type = types.SqPackFileExtension.index,
             .file_idx = null,
         };
         const result = try PathUtils.parseSqPackFileName("040602.win32.index");
@@ -256,7 +257,7 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.repoFromId(6),
             .chunk_id = 2,
             .platform = Platform.ps5,
-            .file_type = FileExtension.dat,
+            .file_type = types.SqPackFileExtension.dat,
             .file_idx = 3,
         };
         const result = try PathUtils.parseSqPackFileName("040602.ps5.dat3");

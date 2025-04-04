@@ -3,7 +3,6 @@ const Allocator = std.mem.Allocator;
 const SqPack = @import("sqpack.zig").SqPack;
 const Chunk = @import("chunk.zig").Chunk;
 
-const FileExtension = @import("file_extension.zig").FileExtension;
 const CategoryId = @import("category_id.zig").CategoryId;
 const Category = @import("category.zig").Category;
 
@@ -15,6 +14,8 @@ const FileLookupResult = path_utils.FileLookupResult;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
 const GameVersion = @import("../common/game_version.zig").GameVersion;
+
+const types = @import("types.zig");
 
 pub const Repository = struct {
     const Self = @This();
@@ -77,7 +78,7 @@ pub const Repository = struct {
         const repo_name = try self.repo_id.toString(sfa);
         defer sfa.free(repo_name);
 
-        const version_file_name = try std.fmt.allocPrint(sfa, "{s}.{s}", .{ repo_name, FileExtension.ver.toString() });
+        const version_file_name = try std.fmt.allocPrint(sfa, "{s}.{s}", .{ repo_name, types.SqPackFileExtension.ver.toString() });
         defer sfa.free(version_file_name);
 
         const version_file_path = try std.fs.path.join(sfa, &.{ self.repo_path, version_file_name });
@@ -100,8 +101,8 @@ pub const Repository = struct {
 
             // There must be at least one version file
             const extension = std.fs.path.extension(entry.basename)[1..];
-            if (!std.mem.eql(u8, extension, FileExtension.index.toString()) and
-                !std.mem.eql(u8, extension, FileExtension.index2.toString()))
+            if (!std.mem.eql(u8, extension, types.SqPackFileExtension.index.toString()) and
+                !std.mem.eql(u8, extension, types.SqPackFileExtension.index2.toString()))
             {
                 continue;
             }

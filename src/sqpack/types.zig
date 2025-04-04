@@ -2,6 +2,31 @@ const std = @import("std");
 
 const Platform = @import("../common/platform.zig").Platform;
 
+pub const FileType = enum(u32) {
+    empty = 0x1,
+    standard = 0x2,
+    model = 0x3,
+    texture = 0x4,
+    _,
+};
+
+pub const SqPackFileExtension = enum {
+    const Self = @This();
+
+    index,
+    index2,
+    ver,
+    dat,
+
+    pub fn fromString(str: []const u8) ?Self {
+        return std.meta.stringToEnum(Self, str);
+    }
+
+    pub fn toString(self: Self) []const u8 {
+        return std.enums.tagName(Self, self).?;
+    }
+};
+
 pub const SqPackHeader = extern struct {
     const Self = @This();
     const expected_magic = [8]u8{ 'S', 'q', 'P', 'a', 'c', 'k', 0, 0 };
@@ -22,12 +47,72 @@ pub const SqPackHeader = extern struct {
     }
 };
 
-pub const FileType = enum(u32) {
-    empty = 0x1,
-    standard = 0x2,
-    model = 0x3,
-    texture = 0x4,
-    _,
+pub const SqPackIndexHeader = extern struct {
+    size: u32,
+    version: u32,
+    index_data_offset: u32,
+    index_data_size: u32,
+    index_data_hash: [64]u8,
+    num_data_files: u32,
+    synonym_data_offset: u32,
+    synonym_data_size: u32,
+    synonym_data_hash: [64]u8,
+    empy_data_offset: u32,
+    empty_data_size: u32,
+    empty_data_hash: [64]u8,
+    dir_index_offset: u32,
+    dir_index_size: u32,
+    dir_index_hash: [64]u8,
+    index_type: u32,
+    _padding0: [656]u8,
+    header_hash: [64]u8,
+};
+
+pub const SqPackIndex1TableEntry = extern struct {
+    pub const IndexFileExtension = SqPackFileExtension.index;
+    pub const HashType = u64;
+
+    const Self = @This();
+
+    hash_data: HashType,
+    packed_data: u32,
+    _padding0: u32,
+
+    pub fn hash(self: *const Self) HashType {
+        return self.hash_data;
+    }
+
+    pub fn dataFileId(self: *const Self) u8 {
+        return @truncate((self.packed_data >> 1) & 0b111);
+    }
+
+    pub fn dataFileOffset(self: *const Self) u64 {
+        const block_offset = self.packed_data & ~@as(u32, 0xF);
+        return @as(u64, block_offset) * 0x08;
+    }
+};
+
+pub const SqPackIndex2TableEntry = extern struct {
+    pub const IndexFileExtension = SqPackFileExtension.index2;
+    pub const HashType = u32;
+
+    const Self = @This();
+
+    hash_data: HashType,
+    packed_data: u32,
+
+    pub fn hash(self: *const Self) HashType {
+        return self.hash_data;
+    }
+
+    pub fn dataFileId(self: *const Self) u8 {
+        return @truncate((self.packed_data >> 1) & 0b111);
+    }
+
+    pub fn dataFileOffset(self: *const Self) u64 {
+        const block_offset = self.packed_data & ~@as(u32, 0xF);
+        return @as(u64, block_offset) * 0x08;
+    }
 };
 
 pub const FileInfo = extern struct {

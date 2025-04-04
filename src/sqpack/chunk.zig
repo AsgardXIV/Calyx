@@ -2,11 +2,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const index = @import("index.zig");
+const types = @import("types.zig");
 
 const Category = @import("category.zig").Category;
 const CategoryId = @import("category_id.zig").CategoryId;
-
-const FileExtension = @import("file_extension.zig").FileExtension;
 
 const path_utils = @import("path_utils.zig");
 const PathUtils = path_utils.PathUtils;
@@ -21,8 +20,8 @@ pub const Chunk = struct {
     allocator: Allocator,
     category: *Category,
     chunk_id: u8,
-    index1: ?*index.Index(index.SqPackIndex1TableEntry),
-    index2: ?*index.Index(index.SqPackIndex2TableEntry),
+    index1: ?*index.Index(types.SqPackIndex1TableEntry),
+    index2: ?*index.Index(types.SqPackIndex2TableEntry),
     dat_files: std.AutoArrayHashMapUnmanaged(u8, *DatFile),
 
     pub fn init(allocator: Allocator, category: *Category, chunk_id: u8) !*Self {
@@ -92,8 +91,8 @@ pub const Chunk = struct {
     }
 
     fn setupIndexes(self: *Self) !void {
-        self.index1 = try self.setupIndex(index.SqPackIndex1TableEntry);
-        self.index2 = try self.setupIndex(index.SqPackIndex2TableEntry);
+        self.index1 = try self.setupIndex(types.SqPackIndex1TableEntry);
+        self.index2 = try self.setupIndex(types.SqPackIndex2TableEntry);
     }
 
     fn setupIndex(self: *Self, comptime T: type) !*index.Index(T) {
