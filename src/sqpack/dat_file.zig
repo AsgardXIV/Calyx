@@ -160,14 +160,14 @@ pub const DatFile = struct {
             block.* = try self.reader.readInt(u16, .little);
         }
 
-        var vertex_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
-        var vertex_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var vertex_data_offsets: [types.ModelFileInfo.LodLevels]u32 = undefined;
+        var vertex_data_sizes: [types.ModelFileInfo.LodLevels]u32 = undefined;
 
-        var edge_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
-        var edge_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var edge_data_offsets: [types.ModelFileInfo.LodLevels]u32 = undefined;
+        var edge_data_sizes: [types.ModelFileInfo.LodLevels]u32 = undefined;
 
-        var index_data_offsets: [types.ModelFileInfo.lod_levels]u32 = undefined;
-        var index_data_sizes: [types.ModelFileInfo.lod_levels]u32 = undefined;
+        var index_data_offsets: [types.ModelFileInfo.LodLevels]u32 = undefined;
+        var index_data_sizes: [types.ModelFileInfo.LodLevels]u32 = undefined;
 
         // Start writing at 0x44 apparently
         stream.pos = 0x44;
@@ -184,7 +184,7 @@ pub const DatFile = struct {
         current_block = runtime_result.next_block;
         const runtime_size: u32 = @intCast(runtime_result.size);
 
-        for (0..types.ModelFileInfo.lod_levels) |lod| {
+        for (0..types.ModelFileInfo.LodLevels) |lod| {
             const vertex_offset = base_offset + file_info.header_size + model_file_info.offset.vertex_buffer_size[lod];
             current_block = try self.processModelData(
                 lod,
@@ -262,7 +262,7 @@ pub const DatFile = struct {
         return .{ .size = stack_size, .next_block = current_block };
     }
 
-    fn processModelData(self: *Self, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[types.ModelFileInfo.lod_levels]u32, data_sizes: *[types.ModelFileInfo.lod_levels]u32, compressed_block_sizes: []u16, stream: *FileStream) !u32 {
+    fn processModelData(self: *Self, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[types.ModelFileInfo.LodLevels]u32, data_sizes: *[types.ModelFileInfo.LodLevels]u32, compressed_block_sizes: []u16, stream: *FileStream) !u32 {
         var current_block = start_block;
         offsets[lod] = 0;
         data_sizes[lod] = 0;

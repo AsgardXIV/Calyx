@@ -44,7 +44,7 @@ pub const GameData = struct {
 
         const game_version_file_path = try std.fs.path.join(sfa, &.{ install_path, GameDataVersionFile });
         defer sfa.free(game_version_file_path);
-        const game_version = common.GameVersion.parseFromFilePath(game_version_file_path) catch common.GameVersion.unknown;
+        const game_version = common.GameVersion.parseFromFilePath(game_version_file_path) catch common.GameVersion.UnknownVersion;
 
         const sqpack_repo_path = try std.fs.path.join(sfa, &.{ install_path, SqPackRepoPath });
         defer sfa.free(sqpack_repo_path);

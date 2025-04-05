@@ -29,7 +29,7 @@ pub const SqPackFileExtension = enum {
 
 pub const SqPackHeader = extern struct {
     const Self = @This();
-    const expected_magic = [8]u8{ 'S', 'q', 'P', 'a', 'c', 'k', 0, 0 };
+    const Magic = [8]u8{ 'S', 'q', 'P', 'a', 'c', 'k', 0, 0 };
 
     magic: [8]u8,
     platform: Platform,
@@ -39,7 +39,7 @@ pub const SqPackHeader = extern struct {
     pack_type: u32,
 
     pub fn validateMagic(self: *const Self) !void {
-        if (std.mem.eql(u8, &self.magic, &expected_magic)) {
+        if (std.mem.eql(u8, &self.magic, &Magic)) {
             return;
         } else {
             return error.InvalidMagic;
@@ -129,17 +129,17 @@ pub const StandardFileInfo = extern struct {
 pub const TextureFileInfo = StandardFileInfo;
 
 pub const ModelFileInfo = extern struct {
-    pub const lod_levels = 3;
+    pub const LodLevels = 3;
 
     num_of_blocks: u32,
     used_num_of_blocks: u32,
     version: u32,
 
-    uncompressed_size: ModelFileMemorySizes(u32, lod_levels),
-    compressed_size: ModelFileMemorySizes(u32, lod_levels),
-    offset: ModelFileMemorySizes(u32, lod_levels),
-    index: ModelFileMemorySizes(u16, lod_levels),
-    num: ModelFileMemorySizes(u16, lod_levels),
+    uncompressed_size: ModelFileMemorySizes(u32, LodLevels),
+    compressed_size: ModelFileMemorySizes(u32, LodLevels),
+    offset: ModelFileMemorySizes(u32, LodLevels),
+    index: ModelFileMemorySizes(u16, LodLevels),
+    num: ModelFileMemorySizes(u16, LodLevels),
 
     vertex_declaration_num: u16,
     material_num: u16,

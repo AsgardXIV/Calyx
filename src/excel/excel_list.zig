@@ -2,8 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const ExcelList = struct {
-    const magic = "EXLT";
-    const line_delimiter = "\r\n";
+    const Magic = "EXLT";
+    const LineDelimiter = "\r\n";
 
     const Self = @This();
 
@@ -70,7 +70,7 @@ pub const ExcelList = struct {
             const version_str = header_parts.next() orelse return error.InvalidHeader;
 
             // Validate
-            if (!std.mem.eql(u8, magic_str, magic)) return error.InvalidMagic;
+            if (!std.mem.eql(u8, magic_str, Magic)) return error.InvalidMagic;
             self.version = try std.fmt.parseInt(u32, version_str, 10);
         }
         sfa.free(raw_header);
