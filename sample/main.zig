@@ -13,5 +13,5 @@ pub fn main() !void {
     defer allocator.free(file_content);
 
     const root_list = try game_data.getTypedGameFile(allocator, calyx.excel.ExcelList, "exd/root.exl");
-    defer allocator.destroy(root_list);
+    root_list.deinit();
 }
