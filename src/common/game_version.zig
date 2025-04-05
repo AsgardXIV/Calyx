@@ -24,7 +24,7 @@ pub const GameVersion = struct {
         @memcpy(self.str[0..version_str_len], version_str);
 
         // Break it down into parts
-        var parts = std.mem.splitSequence(u8, version_str, ".");
+        var parts = std.mem.splitScalar(u8, version_str, '.');
         const year_str = parts.next() orelse return error.InvalidVersionString;
         const month_str = parts.next() orelse return error.InvalidVersionString;
         const day_str = parts.next() orelse return error.InvalidVersionString;

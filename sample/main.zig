@@ -11,4 +11,7 @@ pub fn main() !void {
 
     const file_content = try game_data.getRawGameFile(allocator, "bgcommon/hou/outdoor/general/0319/bgparts/gar_b0_m0319.mdl");
     defer allocator.free(file_content);
+
+    const root_list = try game_data.getTypedGameFile(allocator, calyx.excel.ExcelList, "exd/root.exl");
+    defer allocator.destroy(root_list);
 }

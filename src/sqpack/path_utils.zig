@@ -85,7 +85,7 @@ pub const PathUtils = struct {
     }
 
     pub fn parseSqPackFileName(file_name: []const u8) !ParsedSqPackFileName {
-        var parts = std.mem.splitSequence(u8, file_name, ".");
+        var parts = std.mem.splitScalar(u8, file_name, '.');
 
         const bundle_str = parts.next() orelse return error.InvalidSqPackFilename; // Bundle is the first section and contains category, repo, and chunk
         const platform_str = parts.next() orelse return error.InvalidSqPackFilename; // Platform is the second section, it's a string which we parse in Platform
@@ -148,7 +148,7 @@ pub const PathUtils = struct {
         const index2_hash = crc32(path);
 
         // Split the path into parts
-        var path_parts = std.mem.splitAny(u8, path, "/");
+        var path_parts = std.mem.splitScalar(u8, path, '/');
 
         // Get the category ID
         const category_name = path_parts.next() orelse return error.MalformedPath;

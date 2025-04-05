@@ -7,6 +7,8 @@ const PathUtils = path_utils.PathUtils;
 
 const Allocator = std.mem.Allocator;
 
+/// The `GameData` struct represents the game data instance.
+/// It is the main entry point for accessing game files and data.
 pub const GameData = struct {
     const Self = @This();
 
@@ -19,6 +21,17 @@ pub const GameData = struct {
     pack: *sqpack.SqPack,
     version: common.GameVersion,
 
+    /// Initialize the game data instance.
+    ///
+    /// The caller must provide an allocator to manage memory for the instance.
+    ///
+    /// The `install_path` should point to the root directory of the game installation.
+    /// It should contain the `ffxivgame.ver` file and the `sqpack` directory.
+    ///
+    /// The `platform` should be the platform the game files are from.
+    ///
+    /// Returns a pointer to the initialized `GameData` instance.
+    /// The caller is responsible for freeing the instance using `deinit`.
     pub fn init(allocator: Allocator, install_path: []const u8, platform: common.Platform) !*Self {
         var sfb = std.heap.stackFallback(2048, allocator);
         const sfa = sfb.get();
@@ -58,10 +71,44 @@ pub const GameData = struct {
         self.allocator.destroy(self);
     }
 
+    /// Get the raw game file bytes from the pack.
+    ///
+    /// The path should be a valid game file path container within the pack.
+    ///
+    /// The caller owns the returned buffer and must free it using `allocator.free`.
     pub fn getRawGameFile(self: *Self, allocator: Allocator, path: []const u8) ![]const u8 {
+        // Parse the game path to get the repo, category etc.
         const parsed_path = try PathUtils.parseGamePath(path);
+
+        // See if the file exists in the pack indexes
         const lookup_result = self.pack.lookupFile(parsed_path) orelse return error.GameFileNotFound;
+
+        // Get the file content from the pack
         const file_content = try self.pack.loadFile(allocator, lookup_result.repo_id, lookup_result.category_id, lookup_result.chunk_id, lookup_result.data_file_id, lookup_result.data_file_offset);
+
         return file_content;
+    }
+
+    /// Loads a file from the pack and deserializes it into the given type.
+    ///
+    /// The type `T` must implement the following methods:
+    /// - `pub fn init(allocator: Allocator, stream: *std.io.FixedBufferStream([]const u8)) !*Self`
+    /// - `pub fn deinit(self: *T) void`
+    ///
+    /// init must allocate the instance using the provided allocator and initialize it from the stream.
+    /// deinit must free the instance using the allocator provided in init.
+    ///
+    /// The caller owns the returned instance must free it using `T.deinit`.
+    pub fn getTypedGameFile(self: *Self, allocator: Allocator, comptime T: type, path: []const u8) !*T {
+        // Get the raw game file, use our internal allocator to hold it temporarily
+        const file_content = try self.getRawGameFile(self.allocator, path);
+        defer self.allocator.free(file_content);
+
+        // Deserialize the file content into the instance
+        var stream = std.io.fixedBufferStream(file_content);
+        const file_instance = try T.init(allocator, &stream);
+        errdefer file_instance.deinit();
+
+        return file_instance;
     }
 };
