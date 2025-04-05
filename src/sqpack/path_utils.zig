@@ -123,7 +123,7 @@ pub const PathUtils = struct {
         };
 
         if (file_type == null) {
-            return error.InvalidFileExtension;
+            return error.UnknownFileType;
         }
 
         // Return the parsed file name

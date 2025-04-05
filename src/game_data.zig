@@ -58,10 +58,10 @@ pub const GameData = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn getGameFileHandle(self: *Self, path: []const u8) !void {
+    pub fn getRawGameFile(self: *Self, allocator: Allocator, path: []const u8) ![]const u8 {
         const parsed_path = try PathUtils.parseGamePath(path);
         const lookup_result = self.pack.lookupFile(parsed_path) orelse return error.GameFileNotFound;
-        const file_content = try self.pack.loadFile(self.allocator, lookup_result.repo_id, lookup_result.category_id, lookup_result.chunk_id, lookup_result.data_file_id, lookup_result.data_file_offset);
-        defer self.allocator.free(file_content);
+        const file_content = try self.pack.loadFile(allocator, lookup_result.repo_id, lookup_result.category_id, lookup_result.chunk_id, lookup_result.data_file_id, lookup_result.data_file_offset);
+        return file_content;
     }
 };

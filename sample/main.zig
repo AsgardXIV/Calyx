@@ -9,6 +9,6 @@ pub fn main() !void {
     const game_data = try calyx.GameData.init(allocator, "C:\\Program Files\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn\\game", .win32);
     defer game_data.deinit();
 
-    //try game_data.getGameFileHandle("chara/equipment/e0842/material/v0006/mt_c0101e0842_met_a.mtrl");
-    //try game_data.getGameFileHandle("chara/equipment/e0007/texture/v16_c0101e0007_glv_d.tex");
+    const file_content = try game_data.getRawGameFile(allocator, "bgcommon/hou/outdoor/general/0319/bgparts/gar_b0_m0319.mdl");
+    defer allocator.free(file_content);
 }
