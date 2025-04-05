@@ -1,12 +1,6 @@
 const std = @import("std");
 
-pub const common = @import("common/root.zig");
-pub const core = @import("core/root.zig");
-pub const excel = @import("excel/root.zig");
-pub const game = @import("game/root.zig");
-pub const sqpack = @import("sqpack/root.zig");
-
-pub usingnamespace @import("game_data.zig");
+pub const core = @import("core.zig");
 
 test {
     std.testing.refAllDeclsRecursive(@This());

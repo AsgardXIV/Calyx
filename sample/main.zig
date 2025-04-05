@@ -6,12 +6,18 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const game_data = try calyx.GameData.init(allocator, "C:\\Program Files\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn\\game", .win32);
-    defer game_data.deinit();
+    var buffer = try calyx.core.io.BufferedStreamReader.initFromPath("D:\\test.txt");
+    const reader = buffer.reader();
+    const first_byte = try reader.readByte();
+    std.log.info("First byte: {d}", .{first_byte});
+    buffer.close();
 
-    const file_content = try game_data.getRawGameFile(allocator, "bgcommon/hou/outdoor/general/0319/bgparts/gar_b0_m0319.mdl");
-    defer allocator.free(file_content);
+    const raw = "hello, world!";
+    var buffer2 = calyx.core.io.BufferedStreamReader.initFromFixedBuffer(raw);
+    const reader2 = buffer2.reader();
+    const first_byte2 = try reader2.readByte();
 
-    const root_list = try game_data.getTypedGameFile(allocator, calyx.excel.ExcelList, "exd/root.exl");
-    root_list.deinit();
+    std.log.info("First byte: {d}", .{first_byte2});
+
+    _ = allocator;
 }
