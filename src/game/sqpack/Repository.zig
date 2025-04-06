@@ -7,7 +7,7 @@ const RepositoryId = @import("repository_id.zig").RepositoryId;
 
 const Pack = @import("Pack.zig");
 
-const Category = @import("category.zig");
+const Category = @import("Category.zig");
 const CategoryId = @import("category_id.zig").CategoryId;
 const PackFileName = @import("PackFileName.zig");
 

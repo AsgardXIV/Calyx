@@ -1,4 +1,4 @@
-pub const Category = @import("sqpack/category.zig");
+pub const Category = @import("sqpack/Category.zig");
 pub const CategoryId = @import("sqpack/category_id.zig").CategoryId;
 pub const Pack = @import("sqpack/Pack.zig");
 pub const PackFileName = @import("sqpack/PackFileName.zig");
