@@ -6,18 +6,12 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var buffer = try calyx.core.io.BufferedStreamReader.initFromPath("D:\\test.txt");
-    const reader = buffer.reader();
-    const first_byte = try reader.readByte();
-    std.log.info("First byte: {d}", .{first_byte});
-    buffer.close();
+    const calyx_instance = try calyx.Calyx.init(
+        allocator,
+        "C:\\Program Files\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn\\game",
+        .win32,
+        .english,
+    );
 
-    const raw = "hello, world!";
-    var buffer2 = calyx.core.io.BufferedStreamReader.initFromFixedBuffer(raw);
-    const reader2 = buffer2.reader();
-    const first_byte2 = try reader2.readByte();
-
-    std.log.info("First byte: {d}", .{first_byte2});
-
-    _ = allocator;
+    defer calyx.Calyx.deinit(calyx_instance);
 }
