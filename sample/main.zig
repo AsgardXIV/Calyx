@@ -30,7 +30,7 @@ pub fn main() !void {
 
     const file_content3 = try calyx_instance.pack.getFileContentsByRawPath(
         allocator,
-        "bgcommon/hou/outdoor/general/0319/bgparts/gar_b0_m0319.mdl",
+        "chara/equipment/e0847/model/c0101e0847_top.mdl",
     );
     defer allocator.free(file_content3);
 
