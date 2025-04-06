@@ -7,12 +7,11 @@ const Platform = @import("../platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const CategoryId = @import("category_id.zig").CategoryId;
 const ResolvedGameFile = @import("ResolvedGameFile.zig");
-
 const PackFileName = @import("PackFileName.zig");
+const DatFile = @import("DatFile.zig");
+const ParsedGamePath = @import("ParsedGamePath.zig");
 
 const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
-
-const GamePath = @import("../GamePath.zig");
 
 const index = @import("index.zig");
 const Index1 = index.Index1;
@@ -28,6 +27,7 @@ category_id: CategoryId,
 chunk_id: u8,
 index1: ?*Index1 = null,
 index2: ?*Index2 = null,
+dat_files: std.AutoArrayHashMapUnmanaged(u8, *DatFile),
 
 pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId, chunk_id: u8) !*Chunk {
     const chunk = try allocator.create(Chunk);
@@ -43,6 +43,7 @@ pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, rep
         .repo_path = cloned_repo_path,
         .category_id = category_id,
         .chunk_id = chunk_id,
+        .dat_files = .{},
     };
 
     // Setup the indexes
@@ -52,12 +53,13 @@ pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, rep
 }
 
 pub fn deinit(chunk: *Chunk) void {
+    chunk.cleanupDatFiles();
     chunk.cleanupIndexes();
     chunk.allocator.free(chunk.repo_path);
     chunk.allocator.destroy(chunk);
 }
 
-pub fn lookupFile(chunk: *Chunk, path: GamePath) ?ResolvedGameFile {
+pub fn lookupFileInIndexes(chunk: *Chunk, path: ParsedGamePath) ?ResolvedGameFile {
     // We check both indexes for the file
     // The first one that returns a result is the one we use
     const lookup_result = blk: {
@@ -89,6 +91,36 @@ pub fn lookupFile(chunk: *Chunk, path: GamePath) ?ResolvedGameFile {
 
     // If we didn't find a result, we return null
     return null;
+}
+
+pub fn getFileContentsAtOffset(chunk: *Chunk, allocator: Allocator, dat_id: u8, offset: u64) ![]const u8 {
+    const dat_file = try getOrCreateDatFile(chunk, dat_id);
+    return try dat_file.getFileContentsAtOffset(allocator, offset);
+}
+
+fn getOrCreateDatFile(chunk: *Chunk, file_id: u8) !*DatFile {
+    // Check if we already have the dat file
+    const dat_file = chunk.dat_files.get(file_id);
+    if (dat_file) |dat| {
+        return dat;
+    }
+
+    // If we don't have it, we need to create it
+    const new_dat_file = try DatFile.init(
+        chunk.allocator,
+        chunk.platform,
+        chunk.repo_id,
+        chunk.repo_path,
+        chunk.category_id,
+        chunk.chunk_id,
+        file_id,
+    );
+    errdefer new_dat_file.deinit();
+
+    // Store the dat file in the map
+    try chunk.dat_files.put(chunk.allocator, file_id, new_dat_file);
+
+    return new_dat_file;
 }
 
 fn setupIndexes(chunk: *Chunk) !void {
@@ -127,4 +159,12 @@ fn setupIndex(chunk: *Chunk, comptime IndexType: type, extension: PackFileName.E
 fn cleanupIndexes(chunk: *Chunk) void {
     if (chunk.index1) |idx| idx.deinit();
     if (chunk.index2) |idx| idx.deinit();
+}
+
+fn cleanupDatFiles(chunk: *Chunk) void {
+    for (chunk.dat_files.values()) |dat_file| {
+        dat_file.deinit();
+    }
+    chunk.dat_files.deinit(chunk.allocator);
+    chunk.dat_files = .{};
 }

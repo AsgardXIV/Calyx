@@ -10,6 +10,7 @@ const Pack = @import("Pack.zig");
 const Category = @import("Category.zig");
 const CategoryId = @import("category_id.zig").CategoryId;
 const PackFileName = @import("PackFileName.zig");
+const ParsedGamePath = @import("ParsedGamePath.zig");
 
 const Platform = @import("../platform.zig").Platform;
 
@@ -52,6 +53,11 @@ pub fn deinit(repo: *Repository) void {
     repo.cleanupCategories();
     repo.allocator.free(repo.repo_path);
     repo.allocator.destroy(repo);
+}
+
+pub fn getFileContentsByParsedPath(repo: *Repository, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
+    const category = repo.categories.get(path.category_id) orelse return error.CategoryNotFound;
+    return category.getFileContentsByParsedPath(allocator, path);
 }
 
 fn setupVersion(repo: *Repository) !void {

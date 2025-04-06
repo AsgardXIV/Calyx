@@ -38,7 +38,11 @@ pub const BufferedStreamReader = union(enum) {
     pub fn read(self: *Self, dest: []u8) !usize {
         switch (self.*) {
             .const_buffer => |*x| return x.read(dest),
-            .buffered_file => |*x| return x.buffer.read(dest),
+            .buffered_file => |*x| {
+                const n = try x.buffer.read(dest);
+                x.pos += n;
+                return n;
+            },
         }
     }
 
@@ -47,10 +51,10 @@ pub const BufferedStreamReader = union(enum) {
             .const_buffer => |*x| return x.seekTo(pos),
             .buffered_file => |*x| {
                 try x.file.seekTo(pos);
+                x.pos = pos;
                 x.buffer = .{
                     .unbuffered_reader = x.file.reader(),
                 };
-                x.pos = pos;
             },
         }
     }

@@ -5,6 +5,7 @@ const Calyx = @import("../../Calyx.zig");
 
 const Repository = @import("Repository.zig");
 const RepositoryId = @import("repository_id.zig").RepositoryId;
+const ParsedGamePath = @import("ParsedGamePath.zig");
 
 const GameVersion = @import("../GameVersion.zig");
 
@@ -56,6 +57,16 @@ pub fn deinit(pack: *Pack) void {
     pack.unmountPack();
     pack.allocator.free(pack.pack_path);
     pack.allocator.destroy(pack);
+}
+
+pub fn getFileContentsByRawPath(pack: *Pack, allocator: Allocator, raw_path: []const u8) ![]const u8 {
+    const parsed_path = try ParsedGamePath.fromPathString(raw_path);
+    return pack.getFileContentsByParsedPath(allocator, parsed_path);
+}
+
+pub fn getFileContentsByParsedPath(pack: *Pack, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
+    const repo = pack.repos.get(path.repo_id) orelse return error.InvalidRepositoryId;
+    return repo.getFileContentsByParsedPath(allocator, path);
 }
 
 /// Mounts the pack.

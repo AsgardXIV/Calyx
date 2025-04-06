@@ -5,6 +5,7 @@ const CategoryId = @import("category_id.zig").CategoryId;
 
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const Platform = @import("../platform.zig").Platform;
+const ParsedGamePath = @import("ParsedGamePath.zig");
 
 const Chunk = @import("Chunk.zig");
 
@@ -40,6 +41,17 @@ pub fn deinit(category: *Category) void {
     category.cleanupChunks();
     category.allocator.free(category.repo_path);
     category.allocator.destroy(category);
+}
+
+pub fn getFileContentsByParsedPath(category: *Category, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
+    for (category.chunks.values()) |chunk| {
+        const lookup = chunk.lookupFileInIndexes(path);
+        if (lookup) |resolved| {
+            return chunk.getFileContentsAtOffset(allocator, resolved.data_file_id, resolved.data_file_offset);
+        }
+    }
+
+    return error.FileNotFound;
 }
 
 pub fn chunkDiscovered(category: *Category, chunk_id: u8) !void {

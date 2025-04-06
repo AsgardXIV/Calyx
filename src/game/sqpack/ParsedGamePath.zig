@@ -1,19 +1,19 @@
 const std = @import("std");
 
-const CategoryId = @import("sqpack/category_id.zig").CategoryId;
-const RepositoryId = @import("sqpack/repository_id.zig").RepositoryId;
+const CategoryId = @import("category_id.zig").CategoryId;
+const RepositoryId = @import("repository_id.zig").RepositoryId;
 
-const string = @import("../core/string.zig");
-const hash = @import("../core/hash.zig");
+const string = @import("../../core/string.zig");
+const hash = @import("../../core/hash.zig");
 
-const GamePath = @This();
+const ParsedGamePath = @This();
 
 category_id: CategoryId,
 repo_id: RepositoryId,
 index1_hash: u64,
 index2_hash: u32,
 
-pub fn fromPathString(raw_path: []const u8) !GamePath {
+pub fn fromPathString(raw_path: []const u8) !ParsedGamePath {
     // Lowercase
     var buffer: [1024]u8 = undefined;
     @memcpy(buffer[0..raw_path.len], raw_path[0..raw_path.len]);
@@ -55,7 +55,7 @@ pub fn fromPathString(raw_path: []const u8) !GamePath {
 test "fromPathString" {
     {
         // Basic path with explicit repo ID
-        const expected = GamePath{
+        const expected = ParsedGamePath{
             .category_id = CategoryId.chara,
             .repo_id = RepositoryId.fromIntId(6),
             .index1_hash = 0x2e7e889c54cbce06,
@@ -68,7 +68,7 @@ test "fromPathString" {
     {
         // Basic path with implicit repo ID
 
-        const expected = GamePath{
+        const expected = ParsedGamePath{
             .category_id = CategoryId.chara,
             .repo_id = RepositoryId.fromIntId(0),
             .index1_hash = 0x7774313e54cbce06,
@@ -81,7 +81,7 @@ test "fromPathString" {
     {
         // Path casing is ignored
 
-        const expected = GamePath{
+        const expected = ParsedGamePath{
             .category_id = CategoryId.chara,
             .repo_id = RepositoryId.fromIntId(0),
             .index1_hash = 0x7774313e54cbce06,
@@ -107,7 +107,7 @@ test "fromPathString" {
 
     {
         // Blank file name, technically allowed as you may just want the directory hash
-        const expected = GamePath{
+        const expected = ParsedGamePath{
             .category_id = CategoryId.chara,
             .repo_id = RepositoryId.fromIntId(6),
             .index1_hash = 0xb811ed45ffffffff,
