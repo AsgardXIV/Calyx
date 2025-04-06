@@ -12,6 +12,7 @@ pub fn main() !void {
         .win32,
         .english,
     );
-
     defer calyx.Calyx.deinit(calyx_instance);
+
+    try calyx_instance.pack.mountPack();
 }

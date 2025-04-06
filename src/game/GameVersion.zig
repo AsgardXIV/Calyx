@@ -1,6 +1,7 @@
 const std = @import("std");
 const GameVersion = @This();
 
+pub const GameVersionFileExtension = "ver";
 pub const UnknownVersion = unknownVersion();
 const VersionStrLen = 20;
 
