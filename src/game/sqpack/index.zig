@@ -16,10 +16,12 @@ fn Index(comptime EntryType: type) type {
     return struct {
         const Self = @This();
 
+        const HashType = @FieldType(EntryType, "hash_data");
+
         allocator: Allocator,
         pack_header: SqPackHeader,
         index_header: SqPackIndexHeader,
-        index_table: IndexTable(EntryType),
+        index_table: IndexTable(HashType, EntryType),
 
         pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*Self {
             const self = try allocator.create(Self);
@@ -39,7 +41,9 @@ fn Index(comptime EntryType: type) type {
             // Read the index table
             try self.index_table.populate(self.allocator, bsr, &self.index_header);
 
+            // TODO: REMOVE
             std.log.debug("Index table populated with {d} entries", .{self.index_table.entries.len});
+            _ = self.getOffsetByHash(123);
 
             return self;
         }
@@ -48,14 +52,16 @@ fn Index(comptime EntryType: type) type {
             self.index_table.cleanup(self.allocator);
             self.allocator.destroy(self);
         }
+
+        pub fn getOffsetByHash(self: *Self, hash: HashType) ?u64 {
+            return self.index_table.getOffsetByHash(hash);
+        }
     };
 }
 
-fn IndexTable(comptime EntryType: type) type {
+fn IndexTable(comptime HashType: type, comptime EntryType: type) type {
     return struct {
         const Self = @This();
-
-        const HashType = @FieldType(EntryType, "hash_data");
 
         entries: []EntryType,
         hash_table: std.AutoArrayHashMapUnmanaged(HashType, *EntryType),
@@ -86,6 +92,14 @@ fn IndexTable(comptime EntryType: type) type {
         pub fn cleanup(self: *Self, allocator: Allocator) void {
             allocator.free(self.entries);
             self.hash_table.deinit(allocator);
+        }
+
+        pub fn getOffsetByHash(self: *Self, hash: HashType) ?u64 {
+            if (self.hash_table.get(hash)) |entry| {
+                return entry.dataFileOffset();
+            } else {
+                return null;
+            }
         }
     };
 }
