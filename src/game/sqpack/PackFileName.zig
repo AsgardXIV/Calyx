@@ -13,10 +13,10 @@ category_id: CategoryId,
 repo_id: RepositoryId,
 chunk_id: u8,
 platform: Platform,
-file_extension: PackFileExtension,
+file_extension: Extension,
 file_idx: ?u8,
 
-pub fn parseSqPackFileName(file_name: []const u8) !PackFileName {
+pub fn fromPackFileString(file_name: []const u8) !PackFileName {
     var parts = std.mem.splitScalar(u8, file_name, '.');
 
     const bundle_str = parts.next() orelse return error.InvalidSqPackFilename; // Bundle is the first section and contains category, repo, and chunk
@@ -46,8 +46,8 @@ pub fn parseSqPackFileName(file_name: []const u8) !PackFileName {
 
     // Resolve the file type, with special handling for dat files
     var file_index: ?u8 = null;
-    const file_extension: ?PackFileExtension = PackFileExtension.fromExtensionString(extension) orelse blk: {
-        if (std.mem.startsWith(u8, extension, PackFileExtension.dat.toExensionString())) {
+    const file_extension: ?Extension = Extension.fromExtensionString(extension) orelse blk: {
+        if (std.mem.startsWith(u8, extension, Extension.dat.toExensionString())) {
             file_index = try std.fmt.parseInt(u8, extension[3..], 10);
             break :blk .dat;
         }
@@ -75,7 +75,7 @@ pub fn buildSqPackFileName(
     repo_id: RepositoryId,
     chunk_id: u8,
     platform: Platform,
-    file_extension: PackFileExtension,
+    file_extension: Extension,
     file_idx: ?u8,
 ) ![]const u8 {
     const name = PackFileName{
@@ -111,7 +111,7 @@ pub fn toPackFileString(path: *const PackFileName, allocator: Allocator) ![]cons
     return formatted;
 }
 
-pub const PackFileExtension = enum {
+pub const Extension = enum {
     const Self = @This();
 
     index,
@@ -128,7 +128,7 @@ pub const PackFileExtension = enum {
     }
 };
 
-test "buildSqPackFileName" {
+test "fromPackFileString" {
     {
         // Basic test without file index
         const expected = "040602.win32.index";
@@ -138,7 +138,7 @@ test "buildSqPackFileName" {
             RepositoryId.fromIntId(6),
             2,
             Platform.win32,
-            PackFileExtension.index,
+            Extension.index,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -154,7 +154,7 @@ test "buildSqPackFileName" {
             RepositoryId.Base,
             2,
             Platform.win32,
-            PackFileExtension.index,
+            Extension.index,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -170,7 +170,7 @@ test "buildSqPackFileName" {
             RepositoryId.fromIntId(6),
             2,
             Platform.win32,
-            PackFileExtension.index2,
+            Extension.index2,
             null,
         );
         defer std.testing.allocator.free(result);
@@ -186,7 +186,7 @@ test "buildSqPackFileName" {
             RepositoryId.fromIntId(1),
             3,
             Platform.ps5,
-            PackFileExtension.dat,
+            Extension.dat,
             0,
         );
         defer std.testing.allocator.free(result);
@@ -202,10 +202,10 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.fromIntId(6),
             .chunk_id = 2,
             .platform = Platform.win32,
-            .file_extension = PackFileExtension.index,
+            .file_extension = Extension.index,
             .file_idx = null,
         };
-        const result = try parseSqPackFileName("040602.win32.index");
+        const result = try fromPackFileString("040602.win32.index");
         try std.testing.expectEqual(expected, result);
     }
 
@@ -216,23 +216,23 @@ test "parseSqPackFileName" {
             .repo_id = RepositoryId.fromIntId(6),
             .chunk_id = 2,
             .platform = Platform.ps5,
-            .file_extension = PackFileExtension.dat,
+            .file_extension = Extension.dat,
             .file_idx = 3,
         };
-        const result = try parseSqPackFileName("040602.ps5.dat3");
+        const result = try fromPackFileString("040602.ps5.dat3");
         try std.testing.expectEqual(expected, result);
     }
 
     {
         // Bundle section is too short
-        const result = parseSqPackFileName("04060.ps5.dat3");
+        const result = fromPackFileString("04060.ps5.dat3");
         const expected = error.InvalidSqPackFilename;
         try std.testing.expectError(expected, result);
     }
 
     {
         // Format is totally wrong
-        const result = parseSqPackFileName("invalid");
+        const result = fromPackFileString("invalid");
         const expected = error.InvalidSqPackFilename;
         try std.testing.expectError(expected, result);
     }
