@@ -6,10 +6,15 @@ const Calyx = @import("../../Calyx.zig");
 const Repository = @import("Repository.zig");
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
+const GameVersion = @import("../GameVersion.zig");
+
+const Platform = @import("../platform.zig").Platform;
+
 const Pack = @This();
 
 allocator: Allocator,
-calyx: *Calyx,
+platform: Platform,
+version: GameVersion,
 pack_path: []const u8,
 repos: std.AutoArrayHashMapUnmanaged(RepositoryId, *Repository),
 
@@ -25,7 +30,7 @@ repos: std.AutoArrayHashMapUnmanaged(RepositoryId, *Repository),
 /// Typically the `sqpack` directory.
 ///
 /// Returns a pointer to the initialized `Pack` instance.
-pub fn init(allocator: Allocator, calyx: *Calyx, pack_path: []const u8) !*Pack {
+pub fn init(allocator: Allocator, platform: Platform, version: GameVersion, pack_path: []const u8) !*Pack {
     const pack = try allocator.create(Pack);
     errdefer allocator.destroy(pack);
 
@@ -35,8 +40,9 @@ pub fn init(allocator: Allocator, calyx: *Calyx, pack_path: []const u8) !*Pack {
 
     pack.* = .{
         .allocator = allocator,
-        .calyx = calyx,
         .pack_path = cloned_pack_path,
+        .platform = platform,
+        .version = version,
         .repos = .{},
     };
 
@@ -83,7 +89,13 @@ pub fn mountPack(pack: *Pack) !void {
         const repo_path = try std.fs.path.join(sfa, &.{ pack.pack_path, repo_name });
         defer sfa.free(repo_path);
 
-        const repo = try Repository.init(pack.allocator, pack, repo_id, repo_path);
+        const repo = try Repository.init(
+            pack.allocator,
+            pack.platform,
+            pack.version,
+            repo_id,
+            repo_path,
+        );
 
         try pack.repos.put(pack.allocator, repo_id, repo);
     }

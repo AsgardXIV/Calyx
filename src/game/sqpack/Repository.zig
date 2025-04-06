@@ -7,20 +7,22 @@ const RepositoryId = @import("repository_id.zig").RepositoryId;
 
 const Pack = @import("Pack.zig");
 
-const Repository = @This();
-
 const Category = @import("category.zig");
 const CategoryId = @import("category_id.zig").CategoryId;
 const PackFileName = @import("PackFileName.zig");
 
+const Platform = @import("../platform.zig").Platform;
+
+const Repository = @This();
+
 allocator: Allocator,
-pack: *Pack,
+platform: Platform,
+repo_version: GameVersion,
 repo_id: RepositoryId,
 repo_path: []const u8,
-repo_version: GameVersion,
 categories: std.AutoArrayHashMapUnmanaged(CategoryId, *Category),
 
-pub fn init(allocator: Allocator, pack: *Pack, repo_id: RepositoryId, repo_path: []const u8) !*Repository {
+pub fn init(allocator: Allocator, platform: Platform, default_version: GameVersion, repo_id: RepositoryId, repo_path: []const u8) !*Repository {
     const repo = try allocator.create(Repository);
     errdefer allocator.destroy(repo);
 
@@ -30,10 +32,10 @@ pub fn init(allocator: Allocator, pack: *Pack, repo_id: RepositoryId, repo_path:
 
     repo.* = .{
         .allocator = allocator,
-        .pack = pack,
+        .platform = platform,
+        .repo_version = default_version,
         .repo_id = repo_id,
         .repo_path = cloned_repo_path,
-        .repo_version = GameVersion.UnknownVersion,
         .categories = .{},
     };
 
@@ -65,7 +67,10 @@ fn setupVersion(repo: *Repository) !void {
     const version_file_path = try std.fs.path.join(sfa, &.{ repo.repo_path, version_file_name });
     defer sfa.free(version_file_path);
 
-    repo.repo_version = GameVersion.parseFromFilePath(version_file_path) catch repo.pack.calyx.version;
+    const new_version = GameVersion.parseFromFilePath(version_file_path) catch null;
+    if (new_version) |ver| {
+        repo.repo_version = ver;
+    }
 }
 
 fn discoverCategories(repo: *Repository) !void {
@@ -95,11 +100,17 @@ fn discoverCategories(repo: *Repository) !void {
         const file_name = try PackFileName.fromPackFileString(entry.basename);
 
         // Correct platform?
-        if (file_name.platform != repo.pack.calyx.platform) continue;
+        if (file_name.platform != repo.platform) continue;
 
         // If we haven't seen this category before, create it
         if (!repo.categories.contains(file_name.category_id)) {
-            const category = try Category.init(repo.allocator, repo, file_name.category_id);
+            const category = try Category.init(
+                repo.allocator,
+                repo.platform,
+                repo.repo_id,
+                repo.repo_path,
+                file_name.category_id,
+            );
             errdefer category.deinit();
 
             // Add it to the map

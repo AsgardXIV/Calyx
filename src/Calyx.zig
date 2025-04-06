@@ -58,7 +58,13 @@ pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, lan
     defer sfa.free(sqpack_repo_path);
     var sqpack_dir = try std.fs.openDirAbsolute(sqpack_repo_path, .{ .access_sub_paths = false });
     sqpack_dir.close();
-    const pack = try Pack.init(allocator, calyx, sqpack_repo_path);
+
+    const pack = try Pack.init(
+        allocator,
+        platform,
+        game_version,
+        sqpack_repo_path,
+    );
     errdefer pack.deinit();
 
     calyx.* = .{
