@@ -106,7 +106,7 @@ test "fromPathString" {
     }
 
     {
-        // Blank file name, technically allowed
+        // Blank file name, technically allowed as you may just want the directory hash
         const expected = GamePath{
             .category_id = CategoryId.chara,
             .repo_id = RepositoryId.fromIntId(6),

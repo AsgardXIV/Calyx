@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const Calyx = @import("../../Calyx.zig");
 
-const Repository = @import("repository.zig");
+const Repository = @import("Repository.zig");
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
 const Pack = @This();
