@@ -57,6 +57,8 @@ pub fn deinit(pack: *Pack) void {
 /// This function will discover and load all repositories in the pack.
 /// It will automatically unmount any previously mounted repositories.
 pub fn mountPack(pack: *Pack) !void {
+    std.log.info("Mounting sqpack...", .{});
+
     var sfb = std.heap.stackFallback(2048, pack.allocator);
     const sfa = sfb.get();
 
@@ -85,6 +87,8 @@ pub fn mountPack(pack: *Pack) !void {
 
         try pack.repos.put(pack.allocator, repo_id, repo);
     }
+
+    std.log.info("Mounted sqpack with {d} repositories.", .{pack.repos.count()});
 }
 
 /// Unmounts the pack.

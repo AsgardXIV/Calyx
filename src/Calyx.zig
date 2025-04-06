@@ -35,6 +35,8 @@ pack: *Pack,
 /// Returns a pointer to the initialized `Calyx` instance.
 /// The caller is responsible for freeing the instance using `deinit`.
 pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, language: Language) !*Calyx {
+    std.log.info("Initializing Calyx with game path: {s}...", .{game_path});
+
     const calyx = try allocator.create(Calyx);
     errdefer allocator.destroy(calyx);
 
@@ -67,6 +69,8 @@ pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, lan
         .version = game_version,
         .pack = pack,
     };
+
+    std.log.info("Calyx initialized with game version: {s}", .{calyx.version.str});
 
     return calyx;
 }
