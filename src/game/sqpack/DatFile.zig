@@ -14,6 +14,8 @@ const FileInfo = native_types.FileInfo;
 const StandardFileInfo = native_types.StandardFileInfo;
 const StandardFileBlockInfo = native_types.StandardFileBlockInfo;
 const BlockHeader = native_types.BlockHeader;
+const TextureFileInfo = native_types.TextureFileInfo;
+const TextureFileBlockInfo = native_types.TextureFileBlockInfo;
 
 const DatFile = @This();
 
@@ -79,7 +81,7 @@ fn readFile(dat: *DatFile, allocator: Allocator, offset: u64) ![]const u8 {
     switch (file_info.file_type) {
         .empty => {},
         .standard => try dat.readStandardFile(offset, file_info, &write_stream),
-        .texture => {},
+        .texture => try dat.readTextureFile(offset, file_info, &write_stream),
         .model => {},
         else => return error.UnknownFileType,
     }
@@ -94,20 +96,64 @@ fn readStandardFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_
     // Read the standard file info
     const standard_file_info = try dat.bsr.reader().readStruct(StandardFileInfo);
 
-    // Allocate space for block infos
+    // Read the block infos
     const block_count = standard_file_info.num_of_blocks;
     const blocks = try sfa.alloc(StandardFileBlockInfo, block_count);
     defer sfa.free(blocks);
-
-    // Read the block info structs
-    for (blocks) |*block| {
-        block.* = try dat.bsr.reader().readStruct(StandardFileBlockInfo);
-    }
+    const block_slice = std.mem.sliceAsBytes(blocks);
+    _ = try dat.bsr.reader().readAll(block_slice);
 
     // Now we can read the actual blocks
     for (blocks) |*block| {
         const calculated_offset = base_offset + file_info.header_size + block.offset;
         _ = try dat.readFileBlock(calculated_offset, write_stream);
+    }
+}
+
+fn readTextureFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
+    var sfb = std.heap.stackFallback(4096, dat.allocator);
+    const sfa = sfb.get();
+
+    // Read the texture file info
+    const texture_file_info = try dat.bsr.reader().readStruct(TextureFileInfo);
+
+    // Read the block infos
+    const block_count = texture_file_info.num_of_blocks;
+    const blocks = try sfa.alloc(TextureFileBlockInfo, block_count);
+    defer sfa.free(blocks);
+    const block_slice = std.mem.sliceAsBytes(blocks);
+    _ = try dat.bsr.reader().readAll(block_slice);
+
+    // Read mip data
+    const mip_size = blocks[0].compressed_offset;
+    if (mip_size != 0) {
+        const original_position = try dat.bsr.getPos();
+
+        try dat.bsr.seekTo(base_offset + file_info.header_size);
+        const mip_slice = write_stream.buffer[write_stream.pos..][0..mip_size];
+        const mip_bytes_read = try dat.bsr.reader().readAll(mip_slice);
+        write_stream.pos += mip_bytes_read;
+
+        try dat.bsr.seekTo(original_position);
+    }
+
+    // Now we can read the actual blocks
+    for (blocks) |*block| {
+        var running_total: u64 = base_offset + file_info.header_size + block.compressed_offset;
+        for (0..block.block_count) |_| {
+            // Remember position again
+            const original_position = try dat.bsr.getPos();
+
+            // Read the actual block
+            _ = try dat.readFileBlock(running_total, write_stream);
+
+            // Go back to the original position
+            try dat.bsr.seekTo(original_position);
+
+            // Get the offset to the next block and add it to the running total
+            const offset_to_next = try dat.bsr.reader().readInt(u16, .little);
+            running_total += offset_to_next;
+        }
     }
 }
 
