@@ -6,10 +6,13 @@ const Category = @import("Category.zig");
 const Platform = @import("../platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const CategoryId = @import("category_id.zig").CategoryId;
+const ResolvedGameFile = @import("ResolvedGameFile.zig");
 
 const PackFileName = @import("PackFileName.zig");
 
 const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+
+const GamePath = @import("../GamePath.zig");
 
 const index = @import("index.zig");
 const Index1 = index.Index1;
@@ -52,6 +55,40 @@ pub fn deinit(chunk: *Chunk) void {
     chunk.cleanupIndexes();
     chunk.allocator.free(chunk.repo_path);
     chunk.allocator.destroy(chunk);
+}
+
+pub fn lookupFile(chunk: *Chunk, path: GamePath) ?ResolvedGameFile {
+    // We check both indexes for the file
+    // The first one that returns a result is the one we use
+    const lookup_result = blk: {
+        if (chunk.index1) |idx| {
+            if (idx.lookupFileByHash(path.index1_hash)) |result| {
+                break :blk result;
+            }
+        }
+
+        if (chunk.index2) |idx| {
+            if (idx.lookupFileByHash(path.index2_hash)) |result| {
+                break :blk result;
+            }
+        }
+
+        break :blk null;
+    };
+
+    // If we found a result, we need to build the resolved game file
+    if (lookup_result) |result| {
+        return .{
+            .data_file_id = result.data_file_id,
+            .data_file_offset = result.data_file_offset,
+            .repo_id = chunk.repo_id,
+            .category_id = chunk.category_id,
+            .chunk_id = chunk.chunk_id,
+        };
+    }
+
+    // If we didn't find a result, we return null
+    return null;
 }
 
 fn setupIndexes(chunk: *Chunk) !void {

@@ -43,7 +43,7 @@ fn Index(comptime EntryType: type) type {
 
             // TODO: REMOVE
             std.log.debug("Index table populated with {d} entries", .{self.index_table.entries.len});
-            _ = self.getOffsetByHash(123);
+            _ = self.lookupFileByHash(123);
 
             return self;
         }
@@ -53,9 +53,21 @@ fn Index(comptime EntryType: type) type {
             self.allocator.destroy(self);
         }
 
-        pub fn getOffsetByHash(self: *Self, hash: HashType) ?u64 {
-            return self.index_table.getOffsetByHash(hash);
+        pub fn lookupFileByHash(self: *Self, hash: HashType) ?LookupResult {
+            if (self.index_table.lookupFileByHash(hash)) |entry| {
+                return .{
+                    .data_file_id = entry.dataFileId(),
+                    .data_file_offset = entry.dataFileOffset(),
+                };
+            }
+
+            return null;
         }
+
+        const LookupResult = struct {
+            data_file_id: u8,
+            data_file_offset: u64,
+        };
     };
 }
 
@@ -94,12 +106,8 @@ fn IndexTable(comptime HashType: type, comptime EntryType: type) type {
             self.hash_table.deinit(allocator);
         }
 
-        pub fn getOffsetByHash(self: *Self, hash: HashType) ?u64 {
-            if (self.hash_table.get(hash)) |entry| {
-                return entry.dataFileOffset();
-            } else {
-                return null;
-            }
+        pub fn lookupFileByHash(self: *Self, hash: HashType) ?*EntryType {
+            return self.hash_table.get(hash);
         }
     };
 }
