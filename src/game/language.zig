@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const Language = enum(u16) {
+pub const Language = enum(u8) {
     none = 0x0,
     japanese = 0x1,
     english = 0x2,

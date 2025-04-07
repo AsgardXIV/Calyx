@@ -7,6 +7,8 @@ const Language = game.Language;
 const Platform = game.Platform;
 const Pack = game.sqpack.Pack;
 
+const ExcelSystem = @import("game/excel/ExcelSystem.zig");
+
 const BufferedStreamReader = @import("core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
 const Calyx = @This();
@@ -20,6 +22,7 @@ platform: Platform,
 language: Language,
 version: GameVersion,
 pack: *Pack,
+excel_system: *ExcelSystem,
 
 /// Initializes the Calyx module.
 ///
@@ -69,6 +72,14 @@ pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, lan
     );
     errdefer pack.deinit();
 
+    // Setup the excel system
+    const excel_system = try ExcelSystem.init(
+        allocator,
+        language,
+        pack,
+    );
+    errdefer excel_system.deinit();
+
     calyx.* = .{
         .allocator = allocator,
         .game_path = cloned_game_path,
@@ -76,6 +87,7 @@ pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, lan
         .language = language,
         .version = game_version,
         .pack = pack,
+        .excel_system = excel_system,
     };
 
     std.log.info("Calyx initialized with game version: {s}", .{calyx.version.str});
@@ -87,6 +99,7 @@ pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, lan
 ///
 /// The caller should not use the `Calyx` instance after this function is called.
 pub fn deinit(calyx: *Calyx) void {
+    calyx.excel_system.deinit();
     calyx.pack.deinit();
     calyx.allocator.free(calyx.game_path);
     calyx.allocator.destroy(calyx);
@@ -116,16 +129,5 @@ pub fn getFileContents(calyx: *Calyx, allocator: Allocator, path: []const u8) ![
 ///
 /// The caller owns the returned instance must free it using `FileType.deinit`.
 pub fn getTypedFile(calyx: *Calyx, allocator: Allocator, comptime FileType: type, path: []const u8) !*FileType {
-    // Get the raw file contents
-    const raw_contents = try calyx.getFileContents(calyx.allocator, path);
-    defer allocator.free(raw_contents);
-
-    // Create a buffered stream reader
-    var buffered_stream_reader = BufferedStreamReader.initFromConstBuffer(raw_contents);
-
-    // Deserialize the file contents
-    const typed_contents = try FileType.init(allocator, &buffered_stream_reader);
-    errdefer typed_contents.deinit();
-
-    return typed_contents;
+    return calyx.pack.getTypedFile(allocator, FileType, path);
 }

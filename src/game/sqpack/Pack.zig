@@ -11,6 +11,8 @@ const GameVersion = @import("../GameVersion.zig");
 
 const Platform = @import("../platform.zig").Platform;
 
+const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+
 const Pack = @This();
 
 allocator: Allocator,
@@ -59,18 +61,25 @@ pub fn deinit(pack: *Pack) void {
     pack.allocator.destroy(pack);
 }
 
-/// Gets the file contents for a given path from the pack.
-///
-/// Caller must provide an allocator to manage memory for the file contents.
-///
-/// The `raw_path` should be a string representing the path to the file.
-///
-/// Returns the file contents as a byte slice or an error if the file is not found or an error occurs.
-/// Caller is responsible for freeing the returned slice.
 pub fn getFileContents(pack: *Pack, allocator: Allocator, raw_path: []const u8) ![]const u8 {
     const parsed_path = try ParsedGamePath.fromPathString(raw_path);
     const repo = pack.repos.get(parsed_path.repo_id) orelse return error.InvalidRepositoryId;
     return repo.getFileContents(allocator, parsed_path);
+}
+
+pub fn getTypedFile(pack: *Pack, allocator: Allocator, comptime FileType: type, path: []const u8) !*FileType {
+    // Get the raw file contents
+    const raw_contents = try pack.getFileContents(pack.allocator, path);
+    defer allocator.free(raw_contents);
+
+    // Create a buffered stream reader
+    var buffered_stream_reader = BufferedStreamReader.initFromConstBuffer(raw_contents);
+
+    // Deserialize the file contents
+    const typed_contents = try FileType.init(allocator, &buffered_stream_reader);
+    errdefer typed_contents.deinit();
+
+    return typed_contents;
 }
 
 /// Mounts the pack.

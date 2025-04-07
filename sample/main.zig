@@ -54,4 +54,6 @@ pub fn main() !void {
         "exd/root.exl",
     );
     defer excel_list.deinit();
+
+    try calyx_instance.excel_system.getSheet("Achievement");
 }
