@@ -11,7 +11,6 @@ const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig")
 allocator: Allocator,
 version: u32,
 id_to_key: std.AutoArrayHashMapUnmanaged(i32, []const u8),
-key_to_id: std.StringHashMapUnmanaged(i32),
 
 pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
     const list = try allocator.create(ExcelList);
@@ -21,7 +20,6 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
         .allocator = allocator,
         .version = 0,
         .id_to_key = .{},
-        .key_to_id = .{},
     };
 
     try list.populate(bsr);
@@ -31,22 +29,14 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
 
 pub fn deinit(list: *ExcelList) void {
     // Free the sheet names first
-    var key_iter = list.key_to_id.keyIterator();
-    while (key_iter.next()) |key| {
-        list.allocator.free(key.*);
+    for (list.id_to_key.values()) |key| {
+        list.allocator.free(key);
     }
 
     // Free the hash maps
     list.id_to_key.deinit(list.allocator);
-    list.key_to_id.deinit(list.allocator);
 
     list.allocator.destroy(list);
-}
-
-/// Get the key for a given sheet ID.
-/// Returned value is only valid until the `ExcelList` is deinitialized.
-pub fn getKeyForId(list: *ExcelList, id: i32) ?[]const u8 {
-    return list.id_to_key.get(id) orelse null;
 }
 
 /// Get the ID for a given sheet key.
@@ -106,15 +96,17 @@ fn processEntryLine(list: *ExcelList, line: []const u8) !void {
     // Parse the ID
     const id = try std.fmt.parseInt(i32, id_str, 10);
 
+    // -1 is a special case for "no ID"
+    if (id == -1) return;
+
     // Allocate a heap string for the name
     const heap_str = try list.allocator.dupe(u8, name);
     errdefer list.allocator.free(heap_str);
 
     // Add to id to key map
-    try list.id_to_key.put(list.allocator, id, heap_str);
-
-    // Add to key to id map
-    try list.key_to_id.put(list.allocator, heap_str, id);
+    if (try list.id_to_key.fetchPut(list.allocator, id, heap_str)) |existing| {
+        list.allocator.free(existing.value);
+    }
 }
 
 test "excelListTests" {
