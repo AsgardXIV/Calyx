@@ -73,6 +73,19 @@ pub const BufferedStreamReader = union(enum) {
         }
     }
 
+    pub fn getEndPos(self: *Self) !u64 {
+        switch (self.*) {
+            .const_buffer => |*x| return x.buffer.len,
+            .buffered_file => |*x| return x.file.getEndPos(),
+        }
+    }
+
+    pub fn getRemaining(self: *Self) !u64 {
+        const end = try self.getEndPos();
+        const pos = try self.getPos();
+        return end - pos;
+    }
+
     pub fn reader(self: *Self) Reader {
         return .{ .context = self };
     }
@@ -104,6 +117,33 @@ test "basic fixed seek" {
     }
 }
 
+test "basic fixed pos" {
+    const raw = "hello, world!";
+    var buffer = BufferedStreamReader.initFromConstBuffer(raw);
+    const skip_bytes = 4;
+    const reader = buffer.reader();
+
+    try reader.skipBytes(skip_bytes, .{});
+    try std.testing.expectEqual(buffer.getPos(), skip_bytes);
+}
+
+test "basic fixed endPos" {
+    const raw = "hello, world!";
+    var buffer = BufferedStreamReader.initFromConstBuffer(raw);
+    try std.testing.expectEqual(buffer.getEndPos(), raw.len);
+}
+
+test "basic fixed remaining" {
+    const raw = "hello, world!";
+    var buffer = BufferedStreamReader.initFromConstBuffer(raw);
+    const skip_bytes = 4;
+    const reader = buffer.reader();
+
+    try reader.skipBytes(skip_bytes, .{});
+
+    try std.testing.expectEqual(buffer.getRemaining(), raw.len - skip_bytes);
+}
+
 test "basic file read first byte" {
     const file = try std.fs.cwd().openFile("resources/tests/basic_file.txt", .{ .mode = .read_only });
     var buffer = BufferedStreamReader.initFromFile(file);
@@ -128,4 +168,31 @@ test "basic file seek" {
         const first_byte = try reader.readByte();
         try std.testing.expectEqual(first_byte, 'e');
     }
+}
+
+test "basic file pos" {
+    const file = try std.fs.cwd().openFile("resources/tests/basic_file.txt", .{ .mode = .read_only });
+    var buffer = BufferedStreamReader.initFromFile(file);
+    const skip_bytes = 4;
+    const reader = buffer.reader();
+
+    try reader.skipBytes(skip_bytes, .{});
+    try std.testing.expectEqual(buffer.getPos(), skip_bytes);
+}
+
+test "basic file endPos" {
+    const file = try std.fs.cwd().openFile("resources/tests/basic_file.txt", .{ .mode = .read_only });
+    var buffer = BufferedStreamReader.initFromFile(file);
+    try std.testing.expectEqual(buffer.getEndPos(), 13);
+}
+
+test "basic file remaining" {
+    const file = try std.fs.cwd().openFile("resources/tests/basic_file.txt", .{ .mode = .read_only });
+    var buffer = BufferedStreamReader.initFromFile(file);
+    const skip_bytes = 4;
+    const reader = buffer.reader();
+
+    try reader.skipBytes(skip_bytes, .{});
+
+    try std.testing.expectEqual(buffer.getRemaining(), 13 - skip_bytes);
 }
