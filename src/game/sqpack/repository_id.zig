@@ -34,22 +34,27 @@ pub const RepositoryId = union(enum) {
     }
 
     pub fn fromRepositoryString(repo_name: []const u8, fallback: bool) !RepositoryId {
+        // Explicitly base repo
         if (std.mem.eql(u8, repo_name, BaseRepoName)) {
-            // Explicitly base repo
-            return RepositoryId.Base;
-        } else if (std.mem.startsWith(u8, repo_name, ExPackRepoPrefix)) {
-            // Expansion pack
-            const expack_id = try std.fmt.parseInt(u8, repo_name[2..], 10);
-            return .{ .expansion = expack_id };
-        } else {
-            if (!fallback) {
-                // If not explicitly base repo and not expansion pack, and no base fallback, return error
-                return error.InvalidRepo;
-            }
-
-            // If not explicitly base repo and not expansion pack, but fallback is allowed, return base repo ID
             return RepositoryId.Base;
         }
+
+        // Expansion pack repo
+        if (std.mem.startsWith(u8, repo_name, ExPackRepoPrefix)) {
+            // Parse could fail if it's just a file which begins with "ex"
+            const expack_id = std.fmt.parseInt(u8, repo_name[2..], 10) catch null;
+            if (expack_id) |ex| {
+                return .{ .expansion = ex };
+            }
+        }
+
+        // If not explicitly base repo and not expansion pack, and no base fallback, return error
+        if (!fallback) {
+            return error.InvalidRepo;
+        }
+
+        // If not explicitly base repo and not expansion pack, but fallback is allowed, return base repo ID
+        return RepositoryId.Base;
     }
 };
 
@@ -112,6 +117,11 @@ test "basic fromRepositoryString" {
         const repo_id = try RepositoryId.fromRepositoryString("ex2", false);
         try std.testing.expectEqual(RepositoryId.fromIntId(2), repo_id);
     }
+
+    {
+        const repo_id = RepositoryId.fromRepositoryString("explodey", false);
+        try std.testing.expectError(error.InvalidRepo, repo_id);
+    }
 }
 
 test "fallback fromRepositoryString" {
@@ -123,6 +133,11 @@ test "fallback fromRepositoryString" {
     {
         const repo_id = try RepositoryId.fromRepositoryString("ex2", true);
         try std.testing.expectEqual(RepositoryId.fromIntId(2), repo_id);
+    }
+
+    {
+        const repo_id = try RepositoryId.fromRepositoryString("explodey", true);
+        try std.testing.expectEqual(RepositoryId.Base, repo_id);
     }
 
     {
