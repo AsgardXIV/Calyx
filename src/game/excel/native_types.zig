@@ -64,7 +64,10 @@ pub const ExcelColumnType = enum(u16) {
     _,
 
     pub fn isPackedBool(self: Self) bool {
-        return self >= Self.packed_bool0 and self <= Self.packed_bool7;
+        const current_value = @intFromEnum(self);
+        const packed_bool0 = @intFromEnum(Self.packed_bool0);
+        const packed_bool7 = @intFromEnum(Self.packed_bool7);
+        return current_value >= packed_bool0 and current_value <= packed_bool7;
     }
 };
 

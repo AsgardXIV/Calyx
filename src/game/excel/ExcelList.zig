@@ -40,8 +40,8 @@ pub fn deinit(list: *ExcelList) void {
 }
 
 /// Get the ID for a given sheet key.
-pub fn getIdForKey(list: *ExcelList, key: []const u8) ?i32 {
-    return list.key_to_id.get(key) orelse null;
+pub fn getKeyForId(list: *ExcelList, id: i32) ?[]const u8 {
+    return list.id_to_key.get(id) orelse null;
 }
 
 fn populate(list: *ExcelList, bsr: *BufferedStreamReader) !void {
@@ -123,11 +123,8 @@ test "excelListTests" {
 
         // Check the mapping
         const expected_key = "EmetWasRight";
-        const expected_id = 123;
-        const actual_key = list.getKeyForId(expected_id);
-        const actual_id = list.getIdForKey(expected_key);
+        const actual_key = list.getKeyForId(123);
         try std.testing.expectEqualStrings(expected_key, actual_key.?);
-        try std.testing.expectEqual(expected_id, actual_id.?);
     }
 
     // Invalid magic
