@@ -13,6 +13,7 @@
 
 # idea
 .idea/
+*.iml
 
 # Mac
 *.DS_Store
