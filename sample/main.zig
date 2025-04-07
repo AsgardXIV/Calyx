@@ -16,44 +16,33 @@ pub fn main() !void {
     );
     defer calyx.Calyx.deinit(calyx_instance);
 
+    // Init sqpack
     try calyx_instance.pack.mountPack();
 
+    // Read standard file
     const file_content = try calyx_instance.pack.getFileContents(
         allocator,
         "exd/root.exl",
     );
     defer allocator.free(file_content);
 
+    // Read texture file
     const file_content2 = try calyx_instance.pack.getFileContents(
         allocator,
         "chara/equipment/e0847/texture/v02_c0101e0847_top_mask.tex",
     );
     defer allocator.free(file_content2);
 
+    // Read model file
     const file_content3 = try calyx_instance.pack.getFileContents(
         allocator,
         "chara/equipment/e0847/model/c0101e0847_top.mdl",
     );
     defer allocator.free(file_content3);
 
-    const file1 = try std.fs.openFileAbsolute("D:\\exl.exl", .{ .mode = .write_only });
-    try file1.writeAll(file_content);
-    defer file1.close();
+    // Init excel system
+    try calyx_instance.excel_system.precacheSheetDefinitions();
 
-    const file2 = try std.fs.openFileAbsolute("D:\\tex.tex", .{ .mode = .write_only });
-    try file2.writeAll(file_content2);
-    defer file2.close();
-
-    const file3 = try std.fs.openFileAbsolute("D:\\mdl.mdl", .{ .mode = .write_only });
-    try file3.writeAll(file_content3);
-    defer file3.close();
-
-    const excel_list = try calyx_instance.getTypedFile(
-        allocator,
-        ExcelList,
-        "exd/root.exl",
-    );
-    defer excel_list.deinit();
-
-    try calyx_instance.excel_system.getSheet("Achievement");
+    // Basic sheet access
+    try calyx_instance.excel_system.getSheet("ActionTimeline");
 }

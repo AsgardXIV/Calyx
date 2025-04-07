@@ -41,10 +41,6 @@ fn Index(comptime EntryType: type) type {
             // Read the index table
             try self.index_table.populate(self.allocator, bsr, &self.index_header);
 
-            // TODO: REMOVE
-            std.log.debug("Index table populated with {d} entries", .{self.index_table.entries.len});
-            _ = self.lookupFileByHash(123);
-
             return self;
         }
 
