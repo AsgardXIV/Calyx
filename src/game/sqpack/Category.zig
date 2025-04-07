@@ -43,7 +43,7 @@ pub fn deinit(category: *Category) void {
     category.allocator.destroy(category);
 }
 
-pub fn getFileContentsByParsedPath(category: *Category, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
+pub fn getFileContents(category: *Category, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
     for (category.chunks.values()) |chunk| {
         const lookup = chunk.lookupFileInIndexes(path);
         if (lookup) |resolved| {

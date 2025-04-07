@@ -59,14 +59,18 @@ pub fn deinit(pack: *Pack) void {
     pack.allocator.destroy(pack);
 }
 
-pub fn getFileContentsByRawPath(pack: *Pack, allocator: Allocator, raw_path: []const u8) ![]const u8 {
+/// Gets the file contents for a given path from the pack.
+///
+/// Caller must provide an allocator to manage memory for the file contents.
+///
+/// The `raw_path` should be a string representing the path to the file.
+///
+/// Returns the file contents as a byte slice or an error if the file is not found or an error occurs.
+/// Caller is responsible for freeing the returned slice.
+pub fn getFileContents(pack: *Pack, allocator: Allocator, raw_path: []const u8) ![]const u8 {
     const parsed_path = try ParsedGamePath.fromPathString(raw_path);
-    return pack.getFileContentsByParsedPath(allocator, parsed_path);
-}
-
-pub fn getFileContentsByParsedPath(pack: *Pack, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
-    const repo = pack.repos.get(path.repo_id) orelse return error.InvalidRepositoryId;
-    return repo.getFileContentsByParsedPath(allocator, path);
+    const repo = pack.repos.get(parsed_path.repo_id) orelse return error.InvalidRepositoryId;
+    return repo.getFileContents(allocator, parsed_path);
 }
 
 /// Mounts the pack.

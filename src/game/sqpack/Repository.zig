@@ -55,9 +55,9 @@ pub fn deinit(repo: *Repository) void {
     repo.allocator.destroy(repo);
 }
 
-pub fn getFileContentsByParsedPath(repo: *Repository, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
+pub fn getFileContents(repo: *Repository, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
     const category = repo.categories.get(path.category_id) orelse return error.CategoryNotFound;
-    return category.getFileContentsByParsedPath(allocator, path);
+    return category.getFileContents(allocator, path);
 }
 
 fn setupVersion(repo: *Repository) !void {

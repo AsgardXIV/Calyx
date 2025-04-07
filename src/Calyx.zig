@@ -7,6 +7,8 @@ const Language = game.Language;
 const Platform = game.Platform;
 const Pack = game.sqpack.Pack;
 
+const BufferedStreamReader = @import("core/io/buffered_stream_reader.zig").BufferedStreamReader;
+
 const Calyx = @This();
 
 const VersionFile = "ffxivgame.ver";
@@ -88,4 +90,42 @@ pub fn deinit(calyx: *Calyx) void {
     calyx.pack.deinit();
     calyx.allocator.free(calyx.game_path);
     calyx.allocator.destroy(calyx);
+}
+
+/// Loads the raw file contents for a given path from the pack.
+///
+/// Caller must provide an allocator to manage memory for the file contents.
+///
+/// The `path` should be a string representing the path to the file.
+///
+/// Returns the file contents as a byte slice or an error if the file is not found or an error occurs.
+/// Caller is responsible for freeing the returned slice.
+pub fn getFileContents(calyx: *Calyx, allocator: Allocator, path: []const u8) ![]const u8 {
+    return calyx.pack.getFileContents(allocator, path);
+}
+
+/// Loads a file from the pack and deserializes it into the given type.
+///
+/// The type `FileType` must implement the following methods:
+/// - `pub fn init(allocator: Allocator, stream: *BufferedStreamReader) !*FileType`
+/// - `pub fn deinit(self: *FileType) void`
+///
+/// init must allocate the instance using the provided allocator and initialize it from the stream.
+/// The instance must not access the stream after initialization.
+/// deinit must free the instance using the allocator provided in init.
+///
+/// The caller owns the returned instance must free it using `FileType.deinit`.
+pub fn getTypedFile(calyx: *Calyx, allocator: Allocator, comptime FileType: type, path: []const u8) !*FileType {
+    // Get the raw file contents
+    const raw_contents = try calyx.getFileContents(calyx.allocator, path);
+    defer allocator.free(raw_contents);
+
+    // Create a buffered stream reader
+    var buffered_stream_reader = BufferedStreamReader.initFromConstBuffer(raw_contents);
+
+    // Deserialize the file contents
+    const typed_contents = try FileType.init(allocator, &buffered_stream_reader);
+    errdefer typed_contents.deinit();
+
+    return typed_contents;
 }
