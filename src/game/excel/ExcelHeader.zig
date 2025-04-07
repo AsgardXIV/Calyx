@@ -43,6 +43,19 @@ pub fn deinit(header: *ExcelHeader) void {
     header.allocator.destroy(header);
 }
 
+pub fn hasLanguage(header: *ExcelHeader, language: Language) bool {
+    for (header.languages) |l| {
+        if (l == language) {
+            return true;
+        }
+    }
+    return false;
+}
+
+pub fn hasNoneLanguage(header: *ExcelHeader) bool {
+    return hasLanguage(header, Language.none);
+}
+
 fn populate(header: *ExcelHeader, bsr: *BufferedStreamReader) !void {
     const reader = bsr.reader();
 

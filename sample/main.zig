@@ -42,4 +42,7 @@ pub fn main() !void {
 
     // Init excel system
     try calyx_instance.excel_system.precacheSheetDefinitions();
+
+    const sheet = try calyx_instance.excel_system.getSheetByName("ActionTimeline", null, true);
+    _ = sheet;
 }
