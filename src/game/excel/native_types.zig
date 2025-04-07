@@ -77,3 +77,24 @@ pub const ExcelPageDefinition = extern struct {
     page_id: u32,
     row_count: u32,
 };
+
+pub const ExcelDataHeader = extern struct {
+    const Magic = "EXDF";
+
+    magic: [4]u8,
+    version: u16,
+    _padding0: [2]u8,
+    index_size: u32,
+    _padding1: [2]u8,
+
+    pub fn validateMagic(self: *ExcelDataHeader) !void {
+        if (!std.mem.eql(u8, Magic, &self.magic)) {
+            return error.InvalidMagic;
+        }
+    }
+};
+
+pub const ExcelDataOffset = extern struct {
+    row_id: u32,
+    offset: u32,
+};

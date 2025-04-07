@@ -71,6 +71,11 @@ fn populate(header: *ExcelHeader, bsr: *BufferedStreamReader) !void {
     header.languages = try header.allocator.alloc(Language, language_count);
     errdefer header.allocator.free(header.languages);
     for (header.languages) |*language| {
-        language.* = try reader.readEnum(Language, .big);
+        const byte_value = try reader.readByte();
+        language.* = @enumFromInt(byte_value);
+
+        // weird
+        const skip_ahead = try reader.readByte();
+        try reader.skipBytes(skip_ahead, .{});
     }
 }

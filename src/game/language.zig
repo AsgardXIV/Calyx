@@ -9,6 +9,7 @@ pub const Language = enum(u8) {
     chinese_simplified = 0x5,
     chinese_traditional = 0x6,
     korean = 0x7,
+    traditional_chinese = 0x8,
 
     pub fn toLanguageString(self: Language) []const u8 {
         return switch (self) {
@@ -20,6 +21,7 @@ pub const Language = enum(u8) {
             .chinese_simplified => "chs",
             .chinese_traditional => "cht",
             .korean => "ko",
+            .traditional_chinese => "tc",
         };
     }
 };
