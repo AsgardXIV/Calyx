@@ -13,6 +13,12 @@ pub fn toLowerCase(str: []u8) void {
     }
 }
 
+pub fn allocToLowerCase(allocator: std.mem.Allocator, str: []const u8) ![]const u8 {
+    const result = try allocator.dupe(u8, str);
+    toLowerCase(result);
+    return result;
+}
+
 pub fn toUpperCase(str: []u8) void {
     var i: usize = 0;
     while (i < str.len) {
@@ -20,6 +26,12 @@ pub fn toUpperCase(str: []u8) void {
         if (size == 1) str[i] = std.ascii.toUpper(str[i]);
         i += size;
     }
+}
+
+pub fn allocToUpperCase(allocator: std.mem.Allocator, str: []const u8) ![]const u8 {
+    const result = try allocator.dupe(u8, str);
+    toUpperCase(result);
+    return result;
 }
 
 test "getUtf8ByteSize works for ASCII" {
@@ -59,4 +71,22 @@ test "toUpperCase ignores UTF-8 multi-byte chars" {
     var buf = [_]u8{ 0xC3, 0xA9, ' ', 't', 'e', 's', 't' }; // é test
     toUpperCase(&buf);
     try std.testing.expectEqualStrings("\xC3\xA9 TEST", &buf);
+}
+
+test "allocToLowerCase basic" {
+    const input = "HELLO WORLD";
+
+    const result = try allocToLowerCase(std.testing.allocator, input);
+    defer std.testing.allocator.free(result);
+
+    try std.testing.expectEqualStrings("hello world", result);
+}
+
+test "allocToUpperCase basic" {
+    const input = "hello world";
+
+    const result = try allocToUpperCase(std.testing.allocator, input);
+    defer std.testing.allocator.free(result);
+
+    try std.testing.expectEqualStrings("HELLO WORLD", result);
 }
