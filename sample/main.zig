@@ -45,4 +45,7 @@ pub fn main() !void {
 
     const sheet = try calyx_instance.excel_system.getSheetByName("ActionTimeline", null, true);
     _ = sheet;
+
+    const sheet_2 = try calyx_instance.excel_system.getSheetByName("Item", calyx.game.Language.english, false);
+    _ = sheet_2;
 }

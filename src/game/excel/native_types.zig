@@ -77,7 +77,7 @@ pub const ExcelColumnDefinition = extern struct {
 };
 
 pub const ExcelPageDefinition = extern struct {
-    page_id: u32,
+    start_id: u32,
     row_count: u32,
 };
 
