@@ -1,9 +1,8 @@
 const std = @import("std");
 
 pub const ExcelSheetType = enum(u8) {
-    unknown,
-    default,
-    sub_rows,
+    default = 0x1,
+    sub_rows = 0x2,
 };
 
 pub const ExcelHeaderHeader = extern struct {

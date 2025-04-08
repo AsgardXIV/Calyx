@@ -85,9 +85,10 @@ pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
     const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
     const extra_offset = first_column_offset + sheet.excel_header.header.data_offset;
 
+    // We don't actually even need the preamble
     //bsr.seekTo(row_offset);
     //const row_preamble = try bsr.readStructEndian(ExcelDataRowPreamble, .big);
-    //_ = row_preamble;
+
     try bsr.seekTo(first_column_offset);
 
     const result = try ExcelRow.populate(
