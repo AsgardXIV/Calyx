@@ -60,15 +60,6 @@ pub const ExcelColumnType = enum(u16) {
     packed_bool5 = 0x1E,
     packed_bool6 = 0x1F,
     packed_bool7 = 0x20,
-
-    _,
-
-    pub fn isPackedBool(self: Self) bool {
-        const current_value = @intFromEnum(self);
-        const packed_bool0 = @intFromEnum(Self.packed_bool0);
-        const packed_bool7 = @intFromEnum(Self.packed_bool7);
-        return current_value >= packed_bool0 and current_value <= packed_bool7;
-    }
 };
 
 pub const ExcelColumnDefinition = extern struct {
@@ -88,7 +79,7 @@ pub const ExcelDataHeader = extern struct {
     version: u16,
     _padding0: [2]u8,
     index_size: u32,
-    _padding1: [2]u8,
+    _padding1: [20]u8,
 
     pub fn validateMagic(self: *ExcelDataHeader) !void {
         if (!std.mem.eql(u8, Magic, &self.magic)) {
@@ -100,4 +91,9 @@ pub const ExcelDataHeader = extern struct {
 pub const ExcelDataOffset = extern struct {
     row_id: u32,
     offset: u32,
+};
+
+pub const ExcelDataRowPreamble = extern struct {
+    data_size: u32,
+    row_count: u16,
 };

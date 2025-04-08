@@ -12,7 +12,8 @@ const ExcelDataFile = @This();
 allocator: Allocator,
 header: ExcelDataHeader,
 indexes: []ExcelDataOffset,
-data: []const u8,
+data_start: u32,
+raw_sheet_data: []const u8,
 
 pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelDataFile {
     const data = try allocator.create(ExcelDataFile);
@@ -22,7 +23,8 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelDataFile {
         .allocator = allocator,
         .header = undefined,
         .indexes = undefined,
-        .data = undefined,
+        .raw_sheet_data = undefined,
+        .data_start = undefined,
     };
 
     try data.populate(bsr);
@@ -32,7 +34,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelDataFile {
 
 pub fn deinit(data: *ExcelDataFile) void {
     data.allocator.free(data.indexes);
-    data.allocator.free(data.data);
+    data.allocator.free(data.raw_sheet_data);
     data.allocator.destroy(data);
 }
 
@@ -53,10 +55,13 @@ fn populate(data: *ExcelDataFile, bsr: *BufferedStreamReader) !void {
         entry.* = try reader.readStructEndian(ExcelDataOffset, .big);
     }
 
+    // We need this to adjust offsets later
+    data.data_start = @intCast(try bsr.getPos());
+
     // Read until EOF
     const data_size = try bsr.getRemaining();
     const buffer = try data.allocator.alloc(u8, data_size);
-    errdefer data.allocator.free(data.data);
+    errdefer data.allocator.free(data.raw_sheet_data);
     _ = try reader.readAll(buffer);
-    data.data = buffer;
+    data.raw_sheet_data = buffer;
 }

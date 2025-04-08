@@ -44,7 +44,17 @@ pub fn main() !void {
     try calyx_instance.excel_system.precacheSheetDefinitions();
 
     const sheet = try calyx_instance.excel_system.getSheetByName("ActionTimeline", null, true);
-    _ = sheet;
+    const row = sheet.getRow(3);
+    if (row) |r| {
+        for (r.columns) |col| {
+            switch (col) {
+                .u16 => |v| {
+                    std.debug.print("u16: {}\n", .{v});
+                },
+                else => {},
+            }
+        }
+    }
 
     const sheet_2 = try calyx_instance.excel_system.getSheetByName("Item", calyx.game.Language.english, false);
     _ = sheet_2;
