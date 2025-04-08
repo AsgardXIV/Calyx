@@ -7,7 +7,7 @@ const ExcelDataOffset = native_types.ExcelDataOffset;
 
 const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
-const ExcelDataFile = @This();
+const ExcelData = @This();
 
 allocator: Allocator,
 header: ExcelDataHeader,
@@ -15,8 +15,8 @@ indexes: []ExcelDataOffset,
 data_start: u32,
 raw_sheet_data: []const u8,
 
-pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelDataFile {
-    const data = try allocator.create(ExcelDataFile);
+pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
+    const data = try allocator.create(ExcelData);
     errdefer allocator.destroy(data);
 
     data.* = .{
@@ -32,13 +32,13 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelDataFile {
     return data;
 }
 
-pub fn deinit(data: *ExcelDataFile) void {
+pub fn deinit(data: *ExcelData) void {
     data.allocator.free(data.indexes);
     data.allocator.free(data.raw_sheet_data);
     data.allocator.destroy(data);
 }
 
-fn populate(data: *ExcelDataFile, bsr: *BufferedStreamReader) !void {
+fn populate(data: *ExcelData, bsr: *BufferedStreamReader) !void {
     const reader = bsr.reader();
 
     // Read the header

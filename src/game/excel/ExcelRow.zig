@@ -1,46 +1,38 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const ExcelColumnType = @import("native_types.zig").ExcelColumnType;
-const ExcelColumnValue = @import("excel_column_value.zig").ExcelColumnValue;
-const ExcelSheet = @import("ExcelSheet.zig");
-
 const native_types = @import("native_types.zig");
-const ExcelDataRowPreamble = native_types.ExcelDataRowPreamble;
+const ExcelColumnDefinition = native_types.ExcelColumnDefinition;
+const ExcelColumnType = native_types.ExcelColumnType;
+
+const ExcelColumnValue = @import("excel_column_value.zig").ExcelColumnValue;
 
 const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
 const ExcelRow = @This();
 
-row_id: u32,
 columns: []ExcelColumnValue,
 
 pub fn populate(
     allocator: Allocator,
-    row_id: u32,
-    row_offset: u32,
-    data_offset: u32,
+    row_offset: u64,
+    column_start: u64,
+    extra_offset: u64,
     column_definitions: []native_types.ExcelColumnDefinition,
     bsr: *BufferedStreamReader,
 ) !ExcelRow {
-    try bsr.seekTo(row_offset);
-
-    const preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
-    _ = preamble;
-
-    const col_data_start = try bsr.getPos();
+    _ = row_offset;
 
     const columns = try allocator.alloc(ExcelColumnValue, column_definitions.len);
     errdefer allocator.free(columns);
 
     for (column_definitions, 0..) |*column_definition, i| {
-        const column_offset = col_data_start + column_definition.offset;
+        const column_offset = column_start + column_definition.offset;
         try bsr.seekTo(column_offset);
-        columns[i] = try readColumnValue(allocator, column_definition.column_type, col_data_start + data_offset, bsr);
+        columns[i] = try readColumnValue(allocator, column_definition.column_type, extra_offset, bsr);
     }
 
     return ExcelRow{
-        .row_id = row_id,
         .columns = columns,
     };
 }
@@ -61,13 +53,13 @@ pub fn destroy(row: *ExcelRow, allocator: Allocator) void {
 fn readColumnValue(
     allocator: Allocator,
     column_type: ExcelColumnType,
-    data_begins: u64,
+    extra_offset: u64,
     bsr: *BufferedStreamReader,
 ) !ExcelColumnValue {
     switch (column_type) {
         .string => {
             const string_offset = try bsr.reader().readInt(u32, .big);
-            const absolute_offset = data_begins + string_offset;
+            const absolute_offset = extra_offset + string_offset;
             try bsr.seekTo(absolute_offset);
             const str = try bsr.reader().readUntilDelimiterOrEofAlloc(allocator, '\x00', 2048);
             return ExcelColumnValue{ .string = str.? };
