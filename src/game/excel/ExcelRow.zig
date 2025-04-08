@@ -19,6 +19,7 @@ pub fn populate(
     allocator: Allocator,
     row_id: u32,
     row_offset: u32,
+    data_offset: u32,
     column_definitions: []native_types.ExcelColumnDefinition,
     bsr: *BufferedStreamReader,
 ) !ExcelRow {
@@ -27,15 +28,15 @@ pub fn populate(
     const preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
     _ = preamble;
 
-    const data_offset = try bsr.getPos();
+    const col_data_start = try bsr.getPos();
 
     const columns = try allocator.alloc(ExcelColumnValue, column_definitions.len);
     errdefer allocator.free(columns);
 
     for (column_definitions, 0..) |*column_definition, i| {
-        const column_offset = data_offset + column_definition.offset;
+        const column_offset = col_data_start + column_definition.offset;
         try bsr.seekTo(column_offset);
-        columns[i] = try readColumnValue(allocator, column_definition.column_type, bsr);
+        columns[i] = try readColumnValue(allocator, column_definition.column_type, col_data_start + data_offset, bsr);
     }
 
     return ExcelRow{
@@ -60,11 +61,16 @@ pub fn destroy(row: *ExcelRow, allocator: Allocator) void {
 fn readColumnValue(
     allocator: Allocator,
     column_type: ExcelColumnType,
+    data_begins: u64,
     bsr: *BufferedStreamReader,
 ) !ExcelColumnValue {
     switch (column_type) {
         .string => {
-            return ExcelColumnValue{ .string = "" };
+            const string_offset = try bsr.reader().readInt(u32, .big);
+            const absolute_offset = data_begins + string_offset;
+            try bsr.seekTo(absolute_offset);
+            const str = try bsr.reader().readUntilDelimiterOrEofAlloc(allocator, '\x00', 2048);
+            return ExcelColumnValue{ .string = str.? };
         },
 
         .bool => {
@@ -140,6 +146,6 @@ fn readColumnValue(
             return ExcelColumnValue{ .packed_bool7 = value };
         },
     }
-    _ = allocator;
+
     return error.InvalidColumnType;
 }

@@ -9,22 +9,22 @@ pub const ExcelSheetType = enum(u8) {
 pub const ExcelHeaderHeader = extern struct {
     const Magic = "EXHF";
 
-    magic: [4]u8,
-    version: u16,
-    data_offset: u16,
-    column_count: u16,
-    page_count: u16,
-    language_count: u16,
+    magic: [4]u8 align(1),
+    version: u16 align(1),
+    data_offset: u16 align(1),
+    column_count: u16 align(1),
+    page_count: u16 align(1),
+    language_count: u16 align(1),
 
-    _padding0: [3]u8,
+    _padding0: [3]u8 align(1),
 
-    sheet_type: ExcelSheetType,
+    sheet_type: ExcelSheetType align(1),
 
-    _padding1: [2]u8,
+    _padding1: [2]u8 align(1),
 
-    row_count: u32,
+    row_count: u32 align(1),
 
-    _padding2: [8]u8,
+    _padding2: [8]u8 align(1),
 
     pub fn validateMagic(self: *ExcelHeaderHeader) !void {
         if (!std.mem.eql(u8, Magic, &self.magic)) {
@@ -63,23 +63,23 @@ pub const ExcelColumnType = enum(u16) {
 };
 
 pub const ExcelColumnDefinition = extern struct {
-    column_type: ExcelColumnType,
-    offset: u16,
+    column_type: ExcelColumnType align(1),
+    offset: u16 align(1),
 };
 
 pub const ExcelPageDefinition = extern struct {
-    start_id: u32,
-    row_count: u32,
+    start_id: u32 align(1),
+    row_count: u32 align(1),
 };
 
 pub const ExcelDataHeader = extern struct {
     const Magic = "EXDF";
 
-    magic: [4]u8,
-    version: u16,
-    _padding0: [2]u8,
-    index_size: u32,
-    _padding1: [20]u8,
+    magic: [4]u8 align(1),
+    version: u16 align(1),
+    _padding0: [2]u8 align(1),
+    index_size: u32 align(1),
+    _padding1: [20]u8 align(1),
 
     pub fn validateMagic(self: *ExcelDataHeader) !void {
         if (!std.mem.eql(u8, Magic, &self.magic)) {
@@ -89,11 +89,11 @@ pub const ExcelDataHeader = extern struct {
 };
 
 pub const ExcelDataOffset = extern struct {
-    row_id: u32,
-    offset: u32,
+    row_id: u32 align(1),
+    offset: u32 align(1),
 };
 
 pub const ExcelDataRowPreamble = extern struct {
-    data_size: u32,
-    row_count: u16,
+    data_size: u32 align(1),
+    row_count: u16 align(1),
 };

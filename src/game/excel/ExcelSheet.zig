@@ -67,6 +67,7 @@ fn loadSheetData(sheet: *ExcelSheet, start_id: u32) !void {
             sheet.allocator,
             index.row_id,
             row_data_offset,
+            sheet.container.excel_header.header.data_offset,
             sheet.container.excel_header.column_definitions,
             &bsr,
         );

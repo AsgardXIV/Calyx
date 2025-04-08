@@ -44,12 +44,16 @@ pub fn main() !void {
     try calyx_instance.excel_system.precacheSheetDefinitions();
 
     const sheet = try calyx_instance.excel_system.getSheetByName("ActionTimeline", null, true);
+    std.debug.print("Sheet: {d}\n", .{sheet.rows.size});
     const row = sheet.getRow(3);
     if (row) |r| {
         for (r.columns) |col| {
             switch (col) {
                 .u16 => |v| {
                     std.debug.print("u16: {}\n", .{v});
+                },
+                .string => |v| {
+                    std.debug.print("string: {s}\n", .{v});
                 },
                 else => {},
             }
