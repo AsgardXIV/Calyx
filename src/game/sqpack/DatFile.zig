@@ -352,6 +352,8 @@ fn mountDatFile(dat: *DatFile) !void {
 
     dat.bsr = try BufferedStreamReader.initFromPath(file_path);
 
-    const header = try dat.bsr.reader().readStruct(SqPackHeader);
-    try header.validateMagic();
+    if (dat.file_id == 0) {
+        const header = try dat.bsr.reader().readStruct(SqPackHeader);
+        try header.validateMagic();
+    }
 }
