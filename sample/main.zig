@@ -8,7 +8,7 @@ pub fn main() !void {
 
     const calyx_instance = try calyx.Calyx.init(
         allocator,
-        "C:\\Program Files\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn\\game",
+        null,
         .win32,
         .english,
     );

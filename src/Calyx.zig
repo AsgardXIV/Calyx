@@ -33,6 +33,7 @@ excel_system: *ExcelSystem,
 ///
 /// The `game_path` should point to the root directory of the game installation.
 /// It should contain the `ffxivgame.ver` file and the `sqpack` directory.
+/// If `game_path` is null, it will attempt to read the `FFXIV_GAME_PATH` environment variable.
 ///
 /// The `platform` should be the platform the game files are from.
 ///
@@ -40,13 +41,18 @@ excel_system: *ExcelSystem,
 ///
 /// Returns a pointer to the initialized `Calyx` instance.
 /// The caller is responsible for freeing the instance using `deinit`.
-pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, language: Language) !*Calyx {
+pub fn init(allocator: Allocator, game_path: ?[]const u8, platform: Platform, language: Language) !*Calyx {
     const calyx = try allocator.create(Calyx);
     errdefer allocator.destroy(calyx);
 
     // We need to clone the game path
-    const cloned_game_path = try allocator.dupe(u8, game_path);
-    errdefer allocator.free(cloned_game_path);
+    const cloned_game_path = blk: {
+        if (game_path) |path| {
+            break :blk try allocator.dupe(u8, path);
+        } else {
+            break :blk try std.process.getEnvVarOwned(allocator, "FFXIV_GAME_PATH");
+        }
+    };
 
     // Temp stack allocator for path building
     var sfb = std.heap.stackFallback(2048, allocator);
