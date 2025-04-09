@@ -27,7 +27,7 @@ category_id: CategoryId,
 chunk_id: u8,
 index1: ?*Index1 = null,
 index2: ?*Index2 = null,
-dat_files: std.AutoArrayHashMapUnmanaged(u8, *DatFile),
+dat_files: std.AutoHashMapUnmanaged(u8, *DatFile),
 
 pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId, chunk_id: u8) !*Chunk {
     const chunk = try allocator.create(Chunk);
@@ -162,8 +162,9 @@ fn cleanupIndexes(chunk: *Chunk) void {
 }
 
 fn cleanupDatFiles(chunk: *Chunk) void {
-    for (chunk.dat_files.values()) |dat_file| {
-        dat_file.deinit();
+    var it = chunk.dat_files.valueIterator();
+    while (it.next()) |dat_file| {
+        dat_file.*.deinit();
     }
     chunk.dat_files.deinit(chunk.allocator);
     chunk.dat_files = .{};

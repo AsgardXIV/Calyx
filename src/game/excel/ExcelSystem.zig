@@ -32,6 +32,14 @@ pub fn init(allocator: Allocator, preferred_language: Language, pack: *Pack) !*E
     return system;
 }
 
+pub fn deinit(system: *ExcelSystem) void {
+    system.cleanupSheets();
+
+    if (system.root_sheet_list) |sheet_list| sheet_list.deinit();
+
+    system.allocator.destroy(system);
+}
+
 /// Get a sheet by its name.
 ///
 /// If the sheet is already cached, it will return the cached version.
@@ -47,21 +55,15 @@ pub fn getSheet(system: *ExcelSystem, sheet_name: []const u8) !*ExcelSheet {
     return getOrCreateSheetEntry(system, sheet_name);
 }
 
-pub fn deinit(system: *ExcelSystem) void {
-    system.cleanupSheets();
-
-    if (system.root_sheet_list) |sheet_list| sheet_list.deinit();
-
-    system.allocator.destroy(system);
-}
-
+/// Discovers and loads the root list of sheets from the pack.
 pub fn discoverDefaultDefinitions(system: *ExcelSystem) !void {
     // First we load the root list
     try system.loadRootList();
 
     // Cache them all
-    for (system.root_sheet_list.?.id_to_key.values()) |sheet_name| {
-        _ = try getOrCreateSheetEntry(system, sheet_name);
+    var it = system.root_sheet_list.?.id_to_key.valueIterator();
+    while (it.next()) |value| {
+        _ = try getOrCreateSheetEntry(system, value.*);
     }
 }
 

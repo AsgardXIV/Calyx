@@ -16,7 +16,7 @@ platform: Platform,
 repo_id: RepositoryId,
 repo_path: []const u8,
 category_id: CategoryId,
-chunks: std.AutoArrayHashMapUnmanaged(u8, *Chunk),
+chunks: std.AutoHashMapUnmanaged(u8, *Chunk),
 
 pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId) !*Category {
     const category = try allocator.create(Category);
@@ -44,7 +44,9 @@ pub fn deinit(category: *Category) void {
 }
 
 pub fn getFileContents(category: *Category, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
-    for (category.chunks.values()) |chunk| {
+    var it = category.chunks.valueIterator();
+    while (it.next()) |c| {
+        const chunk = c.*;
         const lookup = chunk.lookupFileInIndexes(path);
         if (lookup) |resolved| {
             return chunk.getFileContentsAtOffset(allocator, resolved.data_file_id, resolved.data_file_offset);
@@ -71,8 +73,9 @@ pub fn chunkDiscovered(category: *Category, chunk_id: u8) !void {
 }
 
 fn cleanupChunks(category: *Category) void {
-    for (category.chunks.values()) |chunk| {
-        chunk.deinit();
+    var it = category.chunks.valueIterator();
+    while (it.next()) |chunk| {
+        chunk.*.deinit();
     }
     category.chunks.deinit(category.allocator);
 }

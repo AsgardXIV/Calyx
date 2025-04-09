@@ -72,7 +72,7 @@ fn IndexTable(comptime HashType: type, comptime EntryType: type) type {
         const Self = @This();
 
         entries: []EntryType,
-        hash_table: std.AutoArrayHashMapUnmanaged(HashType, *EntryType),
+        hash_table: std.AutoHashMapUnmanaged(HashType, *EntryType),
 
         pub fn populate(self: *Self, allocator: Allocator, bsr: *BufferedStreamReader, header: *SqPackIndexHeader) !void {
             self.hash_table = .{};

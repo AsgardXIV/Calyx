@@ -19,7 +19,7 @@ allocator: Allocator,
 platform: Platform,
 version: GameVersion,
 pack_path: []const u8,
-repos: std.AutoArrayHashMapUnmanaged(RepositoryId, *Repository),
+repos: std.AutoHashMapUnmanaged(RepositoryId, *Repository),
 
 /// Initializes a new pack instance.
 ///
@@ -133,8 +133,9 @@ pub fn mountPack(pack: *Pack) !void {
 /// It is safe to call this function even if the pack is not mounted.
 /// Any existing references to the repositories will be invalidated.
 pub fn unmountPack(pack: *Pack) void {
-    for (pack.repos.values()) |repo| {
-        repo.deinit();
+    var it = pack.repos.valueIterator();
+    while (it.next()) |repo| {
+        repo.*.deinit();
     }
     pack.repos.deinit(pack.allocator);
     pack.repos = .{};

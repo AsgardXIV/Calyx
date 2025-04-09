@@ -21,7 +21,7 @@ platform: Platform,
 repo_version: GameVersion,
 repo_id: RepositoryId,
 repo_path: []const u8,
-categories: std.AutoArrayHashMapUnmanaged(CategoryId, *Category),
+categories: std.AutoHashMapUnmanaged(CategoryId, *Category),
 
 pub fn init(allocator: Allocator, platform: Platform, default_version: GameVersion, repo_id: RepositoryId, repo_path: []const u8) !*Repository {
     const repo = try allocator.create(Repository);
@@ -132,8 +132,9 @@ fn discoverCategories(repo: *Repository) !void {
 }
 
 fn cleanupCategories(repo: *Repository) void {
-    for (repo.categories.values()) |category| {
-        category.deinit();
+    var it = repo.categories.valueIterator();
+    while (it.next()) |category| {
+        category.*.deinit();
     }
     repo.categories.deinit(repo.allocator);
 }

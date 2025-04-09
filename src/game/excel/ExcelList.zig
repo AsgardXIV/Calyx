@@ -10,7 +10,7 @@ const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig")
 
 allocator: Allocator,
 version: u32,
-id_to_key: std.AutoArrayHashMapUnmanaged(i32, []const u8),
+id_to_key: std.AutoHashMapUnmanaged(i32, []const u8),
 
 pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
     const list = try allocator.create(ExcelList);
@@ -29,8 +29,11 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
 
 pub fn deinit(list: *ExcelList) void {
     // Free the sheet names first
-    for (list.id_to_key.values()) |key| {
-        list.allocator.free(key);
+    {
+        var it = list.id_to_key.valueIterator();
+        while (it.next()) |key| {
+            list.allocator.free(key.*);
+        }
     }
 
     // Free the hash maps
