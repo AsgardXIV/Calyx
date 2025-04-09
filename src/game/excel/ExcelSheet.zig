@@ -67,6 +67,15 @@ pub fn deinit(sheet: *ExcelSheet) void {
     sheet.allocator.destroy(sheet);
 }
 
+/// Get's the specified `row` from the sheet.
+///
+/// If the row is already cached, it will return the cached version.
+/// If the row is not cached, it will load it and return it.
+/// If the row is not found, it will return an error.
+///
+/// Will return an error if the sheet is not of the default type.
+///
+/// The caller is not responsible for freeing the returned row.
 pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
     if (sheet.excel_header.header.sheet_type != .default) {
         return error.InvalidSheetType;
@@ -76,21 +85,12 @@ pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
         return row_value;
     }
 
-    const page_index = try sheet.determineRowPage(row);
-    const data = try sheet.getPageData(page_index);
-    const row_index_id = data.row_to_index.get(row) orelse return error.RowNotFound;
-    const row_index = data.indexes[row_index_id];
-
-    if (row_index.row_id != row) {
-        return error.CorruptRowIndex;
-    }
+    const data, const row_offset = try sheet.determinePageAndRowOffset(row);
+    const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
+    const extra_offset = first_column_offset + sheet.excel_header.header.data_offset;
 
     var bsr = BufferedStreamReader.initFromConstBuffer(data.raw_sheet_data);
     defer bsr.close();
-
-    const row_offset = row_index.offset - data.data_start;
-    const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
-    const extra_offset = first_column_offset + sheet.excel_header.header.data_offset;
 
     // We don't actually even need the preamble
     //bsr.seekTo(row_offset);
@@ -112,6 +112,15 @@ pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
     return result;
 }
 
+/// Get's the specified `row` and `sub_row` from the sheet.
+///
+/// If the row is already cached, it will return the cached version.
+/// If the row is not cached, it will load it and return it.
+/// If the row is not found, it will return an error.
+///
+/// Will return an error if the sheet is not of the sub-row type.
+///
+/// The caller is not responsible for freeing the returned row.
 pub fn getSubRow(sheet: *ExcelSheet, row: u32, sub_row: u32) !ExcelRow {
     if (sheet.excel_header.header.sheet_type != .sub_rows) {
         return error.InvalidSheetType;
@@ -126,26 +135,17 @@ pub fn getSubRow(sheet: *ExcelSheet, row: u32, sub_row: u32) !ExcelRow {
         return row_value;
     }
 
-    const page_index = try sheet.determineRowPage(row);
-    const data = try sheet.getPageData(page_index);
-    const row_index_id = data.row_to_index.get(row) orelse return error.RowNotFound;
-    const row_index = data.indexes[row_index_id];
-
-    if (row_index.row_id != row) {
-        return error.CorruptRowIndex;
-    }
+    const data, const row_offset = try sheet.determinePageAndRowOffset(row);
+    const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
 
     var bsr = BufferedStreamReader.initFromConstBuffer(data.raw_sheet_data);
     defer bsr.close();
-
-    const row_offset = row_index.offset - data.data_start;
-    const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
 
     try bsr.seekTo(row_offset);
     const row_preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
 
     if (sub_row >= row_preamble.row_count) {
-        return error.InvalidSubRowIndex;
+        return error.SubRowNotFound;
     }
 
     const subrow_offset = first_column_offset + (sub_row * sheet.excel_header.header.data_offset + 2 * (sub_row + 1));
@@ -165,6 +165,35 @@ pub fn getSubRow(sheet: *ExcelSheet, row: u32, sub_row: u32) !ExcelRow {
     try sheet.sub_rows.put(sheet.allocator, sub_row_key, result);
 
     return result;
+}
+
+/// Returns the number of rows in the sheet.
+///
+/// This is the indicated size by the game and may contain empty rows.
+/// Sub-rows are not included in this count.
+pub fn getRowCount(sheet: *ExcelSheet) u32 {
+    return sheet.excel_header.header.row_count;
+}
+
+/// Returns the number of sub-rows in the specified row.
+///
+/// This is the indicated size by the game and may contain empty rows.
+/// Will return an error if the sheet is not of the sub-row type.
+/// Will return an error if the parent row is not found.
+pub fn getSubRowCount(sheet: *ExcelSheet, row: u32) !u32 {
+    if (sheet.excel_header.header.sheet_type != .sub_rows) {
+        return error.InvalidSheetType;
+    }
+
+    const data, const row_offset = try sheet.determinePageAndRowOffset(row);
+
+    var bsr = BufferedStreamReader.initFromConstBuffer(data.raw_sheet_data);
+    defer bsr.close();
+
+    try bsr.seekTo(row_offset);
+    const row_preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
+
+    return row_preamble.row_count;
 }
 
 fn loadExcelHeader(sheet: *ExcelSheet) !void {
@@ -203,6 +232,15 @@ fn determineLanguage(sheet: *ExcelSheet, preferred_language: Language) !void {
 
     // If no compatibile language is found, return an error
     return error.LanguageNotFound;
+}
+
+fn determinePageAndRowOffset(sheet: *ExcelSheet, row: u32) !struct { *ExcelData, u32 } {
+    const page_index = try sheet.determineRowPage(row);
+    const data = try sheet.getPageData(page_index);
+    const row_index_id = data.row_to_index.get(row) orelse return error.RowNotFound;
+    const row_index = data.indexes[row_index_id];
+    const row_offset = row_index.offset - data.data_start;
+    return .{ data, row_offset };
 }
 
 fn determineRowPage(sheet: *ExcelSheet, row: u32) !usize {

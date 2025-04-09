@@ -56,7 +56,7 @@ pub fn main() !void {
 
     {
         const sheet = try calyx_instance.excel_system.getSheet("QuestDefineClient");
-        const row = try sheet.getSubRow(70198, 3);
+        const row = try sheet.getSubRow(70198, 20);
         for (row.columns) |col| {
             switch (col) {
                 .string => |s| {
@@ -68,5 +68,7 @@ pub fn main() !void {
                 else => {},
             }
         }
+
+        std.log.err("Subrows: {d}", .{try sheet.getSubRowCount(70198)});
     }
 }
