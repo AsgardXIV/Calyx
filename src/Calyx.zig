@@ -8,6 +8,7 @@ const Platform = game.Platform;
 const Pack = game.sqpack.Pack;
 
 const ExcelSystem = @import("game/excel/ExcelSystem.zig");
+const ExcelSheet = @import("game/excel/ExcelSheet.zig");
 
 const BufferedStreamReader = @import("core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
@@ -40,8 +41,6 @@ excel_system: *ExcelSystem,
 /// Returns a pointer to the initialized `Calyx` instance.
 /// The caller is responsible for freeing the instance using `deinit`.
 pub fn init(allocator: Allocator, game_path: []const u8, platform: Platform, language: Language) !*Calyx {
-    std.log.info("Initializing Calyx with game path: {s}...", .{game_path});
-
     const calyx = try allocator.create(Calyx);
     errdefer allocator.destroy(calyx);
 
@@ -130,4 +129,19 @@ pub fn getFileContents(calyx: *Calyx, allocator: Allocator, path: []const u8) ![
 /// The caller owns the returned instance must free it using `FileType.deinit`.
 pub fn getTypedFile(calyx: *Calyx, allocator: Allocator, comptime FileType: type, path: []const u8) !*FileType {
     return calyx.pack.getTypedFile(allocator, FileType, path);
+}
+
+/// Get an excel sheet by its name.
+///
+/// If the sheet is already cached, it will return the cached version.
+/// If the sheet is not cached, it will load it and return it.
+/// If the sheet is not found, it will return an error.
+///
+/// It will always attempt to return the sheet with the preferred language.
+/// If the sheet is not found in the preferred language, it will return the sheet with the None language.
+/// If the sheet is not found in any language, it will return an error.
+///
+/// The caller is not responsible for freeing the returned sheet.
+pub fn getSheet(calyx: *Calyx, sheet_name: []const u8) !*ExcelSheet {
+    return calyx.excel_system.getSheet(sheet_name);
 }

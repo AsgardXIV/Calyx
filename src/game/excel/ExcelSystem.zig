@@ -40,17 +40,6 @@ pub fn deinit(system: *ExcelSystem) void {
     system.allocator.destroy(system);
 }
 
-/// Get a sheet by its name.
-///
-/// If the sheet is already cached, it will return the cached version.
-/// If the sheet is not cached, it will load it and return it.
-/// If the sheet is not found, it will return an error.
-///
-/// It will always attempt to return the sheet with the preferred language.
-/// If the sheet is not found in the preferred language, it will return the sheet with the None language.
-/// If the sheet is not found in any language, it will return an error.
-///
-/// The caller is not responsible for freeing the returned sheet.
 pub fn getSheet(system: *ExcelSystem, sheet_name: []const u8) !*ExcelSheet {
     return getOrCreateSheetEntry(system, sheet_name);
 }

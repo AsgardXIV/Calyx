@@ -250,7 +250,7 @@ fn determineRowPage(sheet: *ExcelSheet, row: u32) !usize {
             return i;
         }
     }
-    return error.RowOutOfRange;
+    return error.RowNotFound;
 }
 
 fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelData {

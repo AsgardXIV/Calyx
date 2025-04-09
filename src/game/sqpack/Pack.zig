@@ -21,18 +21,6 @@ version: GameVersion,
 pack_path: []const u8,
 repos: std.AutoHashMapUnmanaged(RepositoryId, *Repository),
 
-/// Initializes a new pack instance.
-///
-/// The pack is not mounted by default.
-///
-/// The caller must provide an allocator to manage memory for the instance.
-///
-/// The `calyx` pointer should point to the `Calyx` instance that this pack is associated with.
-///
-/// The `pack_path` should point to the root directory of the pack.
-/// Typically the `sqpack` directory.
-///
-/// Returns a pointer to the initialized `Pack` instance.
 pub fn init(allocator: Allocator, platform: Platform, version: GameVersion, pack_path: []const u8) !*Pack {
     const pack = try allocator.create(Pack);
     errdefer allocator.destroy(pack);
@@ -52,9 +40,6 @@ pub fn init(allocator: Allocator, platform: Platform, version: GameVersion, pack
     return pack;
 }
 
-/// Deinitializes the `Pack` instance.
-///
-/// The caller should not use the `Pack` instance after this function is called.
 pub fn deinit(pack: *Pack) void {
     pack.unmountPack();
     pack.allocator.free(pack.pack_path);
@@ -82,13 +67,7 @@ pub fn getTypedFile(pack: *Pack, allocator: Allocator, comptime FileType: type, 
     return typed_contents;
 }
 
-/// Mounts the pack.
-///
-/// This function will discover and load all repositories in the pack.
-/// It will automatically unmount any previously mounted repositories.
 pub fn mountPack(pack: *Pack) !void {
-    std.log.info("Mounting sqpack...", .{});
-
     var sfb = std.heap.stackFallback(2048, pack.allocator);
     const sfa = sfb.get();
 
@@ -123,15 +102,8 @@ pub fn mountPack(pack: *Pack) !void {
 
         try pack.repos.put(pack.allocator, repo_id, repo);
     }
-
-    std.log.info("Mounted sqpack with {d} repositories.", .{pack.repos.count()});
 }
 
-/// Unmounts the pack.
-///
-/// This function will unload all repositories in the pack.
-/// It is safe to call this function even if the pack is not mounted.
-/// Any existing references to the repositories will be invalidated.
 pub fn unmountPack(pack: *Pack) void {
     var it = pack.repos.valueIterator();
     while (it.next()) |repo| {
