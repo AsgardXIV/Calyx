@@ -16,6 +16,11 @@ const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig")
 
 const ExcelSheet = @This();
 
+const SubRow = extern struct {
+    row_id: u32,
+    sub_row_id: u32,
+};
+
 allocator: Allocator,
 pack: *Pack,
 sheet_name: []const u8,
@@ -23,6 +28,7 @@ excel_header: *ExcelHeader,
 language: Language,
 datas: []?*ExcelData,
 rows: std.AutoHashMapUnmanaged(u32, ExcelRow),
+sub_rows: std.AutoHashMapUnmanaged(SubRow, ExcelRow),
 
 pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred_language: Language) !*ExcelSheet {
     const sheet = try allocator.create(ExcelSheet);
@@ -39,6 +45,7 @@ pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred
         .language = undefined,
         .datas = undefined,
         .rows = .{},
+        .sub_rows = .{},
     };
 
     try sheet.loadExcelHeader();
@@ -71,7 +78,7 @@ pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
 
     const page_index = try sheet.determineRowPage(row);
     const data = try sheet.getPageData(page_index);
-    const row_index_id = row - sheet.excel_header.page_definitions[page_index].start_id;
+    const row_index_id = data.row_to_index.get(row) orelse return error.RowNotFound;
     const row_index = data.indexes[row_index_id];
 
     if (row_index.row_id != row) {
@@ -105,15 +112,59 @@ pub fn getRow(sheet: *ExcelSheet, row: u32) !ExcelRow {
     return result;
 }
 
-pub fn getSubRow(sheet: *ExcelSheet, row: u32, sub_row: u32) !void {
+pub fn getSubRow(sheet: *ExcelSheet, row: u32, sub_row: u32) !ExcelRow {
     if (sheet.excel_header.header.sheet_type != .sub_rows) {
         return error.InvalidSheetType;
     }
 
-    _ = row;
-    _ = sub_row;
+    const sub_row_key = SubRow{
+        .row_id = row,
+        .sub_row_id = sub_row,
+    };
 
-    return error.NotYetImplemented;
+    if (sheet.sub_rows.get(sub_row_key)) |row_value| {
+        return row_value;
+    }
+
+    const page_index = try sheet.determineRowPage(row);
+    const data = try sheet.getPageData(page_index);
+    const row_index_id = data.row_to_index.get(row) orelse return error.RowNotFound;
+    const row_index = data.indexes[row_index_id];
+
+    if (row_index.row_id != row) {
+        return error.CorruptRowIndex;
+    }
+
+    var bsr = BufferedStreamReader.initFromConstBuffer(data.raw_sheet_data);
+    defer bsr.close();
+
+    const row_offset = row_index.offset - data.data_start;
+    const first_column_offset = row_offset + @sizeOf(ExcelDataRowPreamble);
+
+    try bsr.seekTo(row_offset);
+    const row_preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
+
+    if (sub_row >= row_preamble.row_count) {
+        return error.InvalidSubRowIndex;
+    }
+
+    const subrow_offset = first_column_offset + (sub_row * sheet.excel_header.header.data_offset + 2 * (sub_row + 1));
+    const extra_offset = subrow_offset + sheet.excel_header.header.data_offset;
+
+    try bsr.seekTo(subrow_offset);
+
+    const result = try ExcelRow.populate(
+        sheet.allocator,
+        row_offset,
+        subrow_offset,
+        extra_offset,
+        sheet.excel_header.column_definitions,
+        &bsr,
+    );
+
+    try sheet.sub_rows.put(sheet.allocator, sub_row_key, result);
+
+    return result;
 }
 
 fn loadExcelHeader(sheet: *ExcelSheet) !void {
@@ -211,9 +262,19 @@ fn cleanupDatas(sheet: *ExcelSheet) void {
 }
 
 fn cleanupRows(sheet: *ExcelSheet) void {
-    var it = sheet.rows.iterator();
-    while (it.next()) |entry| {
-        entry.value_ptr.*.destroy(sheet.allocator);
+    {
+        var it = sheet.rows.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.*.destroy(sheet.allocator);
+        }
+        sheet.rows.deinit(sheet.allocator);
     }
-    sheet.rows.deinit(sheet.allocator);
+
+    {
+        var it = sheet.sub_rows.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.*.destroy(sheet.allocator);
+        }
+        sheet.sub_rows.deinit(sheet.allocator);
+    }
 }

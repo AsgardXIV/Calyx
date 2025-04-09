@@ -14,6 +14,7 @@ header: ExcelDataHeader,
 indexes: []ExcelDataOffset,
 data_start: u32,
 raw_sheet_data: []const u8,
+row_to_index: std.AutoHashMapUnmanaged(u32, usize),
 
 pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
     const data = try allocator.create(ExcelData);
@@ -25,6 +26,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
         .indexes = undefined,
         .raw_sheet_data = undefined,
         .data_start = undefined,
+        .row_to_index = .{},
     };
 
     try data.populate(bsr);
@@ -33,6 +35,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
 }
 
 pub fn deinit(data: *ExcelData) void {
+    data.row_to_index.deinit(data.allocator);
     data.allocator.free(data.indexes);
     data.allocator.free(data.raw_sheet_data);
     data.allocator.destroy(data);
@@ -48,11 +51,18 @@ fn populate(data: *ExcelData, bsr: *BufferedStreamReader) !void {
     // Index count
     const index_count = data.header.index_size / @sizeOf(ExcelDataOffset);
 
+    // Allocate space for the map
+    try data.row_to_index.ensureTotalCapacity(data.allocator, index_count);
+    errdefer data.row_to_index.deinit(data.allocator);
+
     // Read the indexes
     data.indexes = try data.allocator.alloc(ExcelDataOffset, index_count);
     errdefer data.allocator.free(data.indexes);
+    var i: usize = 0;
     for (data.indexes) |*entry| {
         entry.* = try reader.readStructEndian(ExcelDataOffset, .big);
+        data.row_to_index.putAssumeCapacity(entry.row_id, i);
+        i += 1;
     }
 
     // We need this to adjust offsets later

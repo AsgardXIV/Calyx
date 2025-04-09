@@ -74,6 +74,14 @@ fn getOrCreateSheetEntry(system: *ExcelSystem, sheet_name: []const u8) !*ExcelSh
     const sheet = try ExcelSheet.init(system.allocator, system.pack, sheet_name, system.preferred_language);
     errdefer sheet.deinit();
 
+    if (sheet.excel_header.header.sheet_type == .sub_rows) {
+        for (sheet.excel_header.column_definitions) |col| {
+            if (col.column_type == .string) {
+                std.log.err("Sheet {s} is a sub-row sheet, not a default sheet", .{sheet_name});
+            }
+        }
+    }
+
     // Store the sheet container in the map
     try system.sheet_map.put(system.allocator, global_name_lower, sheet);
 

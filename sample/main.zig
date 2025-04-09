@@ -55,12 +55,15 @@ pub fn main() !void {
     }
 
     {
-        const sheet = try calyx_instance.excel_system.getSheet("Item");
-        const row = try sheet.getRow(501);
+        const sheet = try calyx_instance.excel_system.getSheet("QuestDefineClient");
+        const row = try sheet.getSubRow(70198, 3);
         for (row.columns) |col| {
             switch (col) {
                 .string => |s| {
                     std.log.err("String: {s}", .{s});
+                },
+                .u32 => |d| {
+                    std.log.err("UInt: {d}", .{d});
                 },
                 else => {},
             }
