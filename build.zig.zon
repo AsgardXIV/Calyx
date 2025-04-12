@@ -7,13 +7,18 @@
     .dependencies = .{},
 
     .paths = .{
+        // Folders
         ".github",
+        "sample",
+        "src",
+        "test",
+
+        // Files
         ".gitignore",
         ".gitattributes",
         ".zigversion",
         "build.zig",
         "build.zig.zon",
         "README.md",
-        "src",
     },
 }
