@@ -6,7 +6,7 @@ const CategoryId = @import("category_id.zig").CategoryId;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const Platform = @import("../platform.zig").Platform;
 const ParsedGamePath = @import("ParsedGamePath.zig");
-
+const PackFileName = @import("PackFileName.zig");
 const Chunk = @import("Chunk.zig");
 
 const Category = @This();
@@ -16,7 +16,7 @@ platform: Platform,
 repo_id: RepositoryId,
 repo_path: []const u8,
 category_id: CategoryId,
-chunks: std.AutoHashMapUnmanaged(u8, *Chunk),
+chunks: std.ArrayListUnmanaged(*Chunk),
 
 pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId) !*Category {
     const category = try allocator.create(Category);
@@ -34,6 +34,8 @@ pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, rep
         .chunks = .{},
     };
 
+    try category.setupChunks();
+
     return category;
 }
 
@@ -44,9 +46,7 @@ pub fn deinit(category: *Category) void {
 }
 
 pub fn getFileContents(category: *Category, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
-    var it = category.chunks.valueIterator();
-    while (it.next()) |c| {
-        const chunk = c.*;
+    for (category.chunks.items) |chunk| {
         const lookup = chunk.lookupFileInIndexes(path);
         if (lookup) |resolved| {
             return chunk.getFileContentsAtOffset(allocator, resolved.data_file_id, resolved.data_file_offset);
@@ -56,26 +56,61 @@ pub fn getFileContents(category: *Category, allocator: Allocator, path: ParsedGa
     return error.FileNotFound;
 }
 
-pub fn chunkDiscovered(category: *Category, chunk_id: u8) !void {
-    if (!category.chunks.contains(chunk_id)) {
+fn setupChunks(category: *Category) !void {
+    var sfb = std.heap.stackFallback(2048, category.allocator);
+    const sfa = sfb.get();
+
+    errdefer category.cleanupChunks();
+
+    // Discover all valid chunks
+    const first_invalid_chunk = for (0..256) |chunk_id| {
+        // See if there are indexes for this chunk
+        const chunk_exists = ext_loop: for ([_]PackFileName.Extension{ .index, .index2 }) |ext| {
+            const file_name = PackFileName.buildSqPackFileName(
+                sfa,
+                category.category_id,
+                category.repo_id,
+                @intCast(chunk_id),
+                category.platform,
+                ext,
+                null,
+            ) catch continue :ext_loop;
+            defer sfa.free(file_name);
+
+            const file_path = std.fs.path.join(sfa, &.{ category.repo_path, file_name }) catch continue :ext_loop;
+            defer sfa.free(file_path);
+
+            std.fs.accessAbsolute(file_path, .{}) catch continue :ext_loop;
+
+            break :ext_loop true;
+        } else false;
+
+        // No chunk exists, they are sequential so we're done
+        if (!chunk_exists) break chunk_id;
+    } else 0;
+
+    // Setup the chunks
+    try category.chunks.ensureTotalCapacity(category.allocator, first_invalid_chunk);
+    for (0..first_invalid_chunk) |chunk_id| {
+        // Create the chunk
         const chunk = try Chunk.init(
             category.allocator,
             category.platform,
             category.repo_id,
             category.repo_path,
             category.category_id,
-            chunk_id,
+            @intCast(chunk_id),
         );
         errdefer chunk.deinit();
 
-        try category.chunks.put(category.allocator, chunk_id, chunk);
+        // Store the chunk
+        category.chunks.appendAssumeCapacity(chunk);
     }
 }
 
 fn cleanupChunks(category: *Category) void {
-    var it = category.chunks.valueIterator();
-    while (it.next()) |chunk| {
-        chunk.*.deinit();
+    for (category.chunks.items) |chunk| {
+        chunk.deinit();
     }
     category.chunks.deinit(category.allocator);
 }

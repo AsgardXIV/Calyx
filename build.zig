@@ -1,90 +1,113 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    // Build Config
+    const build_unit_tests = b.option(bool, "build-unit-tests", "Build the Calyx unit tests") orelse true;
+    const build_integration_tests = b.option(bool, "build-integration-tests", "Build the Calyx integration tests") orelse true;
     const build_sample = b.option(bool, "build-sample", "Build the Calyx sample") orelse true;
+    const build_docs = b.option(bool, "build-docs", "Build the Calyx docs") orelse true;
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Library
-    const lib_mod = b.addModule("calyx", .{
-        .root_source_file = b.path("src/root.zig"),
+    // Calyx Module
+    const calyx_mod = b.addModule("calyx", .{
+        .root_source_file = b.path("src/calyx.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    const lib = b.addLibrary(.{
+    // Calyx Lib
+    const calyx_lib = b.addLibrary(.{
         .linkage = .static,
         .name = "calyx",
-        .root_module = lib_mod,
+        .root_module = calyx_mod,
     });
 
-    b.installArtifact(lib);
+    b.installArtifact(calyx_lib);
 
-    // Unit Tests
-    const lib_unit_tests = b.addTest(.{
-        .root_module = lib_mod,
-    });
+    // Calyx Unit Tests
+    if (build_unit_tests) {
+        const calyx_unit_tests = b.addTest(.{
+            .name = "calyx_unit_tests",
+            .root_module = calyx_mod,
+        });
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+        const calyx_run_unit_tests = b.addRunArtifact(calyx_unit_tests);
 
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
+        const calyx_unit_test_step = b.step("test", "Run unit tests");
+        calyx_unit_test_step.dependOn(&calyx_run_unit_tests.step);
 
-    // Integration tests
-    const integration_tests_mod = b.createModule(.{
-        .root_source_file = b.path("test/root.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+        b.installArtifact(calyx_unit_tests);
+    }
 
-    integration_tests_mod.addImport("calxy", lib_mod);
+    // Calyx Integration Tests
+    if (build_integration_tests) {
+        const calyx_integration_tests_mod = b.createModule(.{
+            .root_source_file = b.path("test/tests.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{
+                    .name = "calyx",
+                    .module = calyx_mod,
+                },
+            },
+        });
 
-    const integration_tests = b.addTest(.{
-        .root_module = integration_tests_mod,
-    });
+        const calyx_integration_tests = b.addTest(.{
+            .name = "calyx_integration_tests",
+            .root_module = calyx_integration_tests_mod,
+        });
 
-    const run_integration_tests = b.addRunArtifact(integration_tests);
+        const calyx_run_integration_tests = b.addRunArtifact(calyx_integration_tests);
 
-    const integration_test_step = b.step("integrationTest", "Run integration tests");
-    integration_test_step.dependOn(&run_integration_tests.step);
+        const calyx_integration_test_step = b.step("integrationTest", "Run integration tests");
+        calyx_integration_test_step.dependOn(&calyx_run_integration_tests.step);
 
-    // Docs
-    const lib_install_docs = b.addInstallDirectory(.{
-        .source_dir = lib.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs",
-    });
+        b.installArtifact(calyx_integration_tests);
+    }
 
-    const docs_step = b.step("docs", "Install docs into zig-out/docs");
-    docs_step.dependOn(&lib_install_docs.step);
+    // Calyx Docs
+    if (build_docs) {
+        const calyx_docs = b.addInstallDirectory(.{
+            .source_dir = calyx_lib.getEmittedDocs(),
+            .install_dir = .prefix,
+            .install_subdir = "docs",
+        });
 
-    // Sample executable
+        const calyx_docs_step = b.step("docs", "Install docs");
+        calyx_docs_step.dependOn(&calyx_docs.step);
+    }
+
+    // Calyx Sample
     if (build_sample) {
-        const sample_exe_mod = b.createModule(.{
+        const calyx_sample_exe_mod = b.createModule(.{
             .root_source_file = b.path("sample/main.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{
+                    .name = "calyx",
+                    .module = calyx_mod,
+                },
+            },
         });
 
-        sample_exe_mod.addImport("calyx", lib_mod);
-
-        const sample_exe = b.addExecutable(.{
+        const calyx_sample_exe = b.addExecutable(.{
             .name = "calyx_sample",
-            .root_module = sample_exe_mod,
+            .root_module = calyx_sample_exe_mod,
         });
 
-        b.installArtifact(sample_exe);
+        const calyx_sample_run_cmd = b.addRunArtifact(calyx_sample_exe);
 
-        const run_cmd = b.addRunArtifact(sample_exe);
-
-        run_cmd.step.dependOn(b.getInstallStep());
+        calyx_sample_run_cmd.step.dependOn(b.getInstallStep());
 
         if (b.args) |args| {
-            run_cmd.addArgs(args);
+            calyx_sample_run_cmd.addArgs(args);
         }
 
-        const run_step = b.step("run", "Run the app");
-        run_step.dependOn(&run_cmd.step);
+        const calyx_run_step = b.step("sample", "Run the Calyx sample app");
+        calyx_run_step.dependOn(&calyx_sample_run_cmd.step);
+
+        b.installArtifact(calyx_sample_exe);
     }
 }

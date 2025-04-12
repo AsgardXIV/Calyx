@@ -87,7 +87,7 @@ fn populate(header: *ExcelHeader, bsr: *BufferedStreamReader) !void {
         const byte_value = try reader.readByte();
         language.* = @enumFromInt(byte_value);
 
-        // weird, but needed - could it be variable length size?
-        _ = try reader.readByte();
+        // weird, but needed - another value, string length?
+        try reader.skipBytes(1, .{});
     }
 }

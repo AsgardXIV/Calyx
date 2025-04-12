@@ -6,14 +6,11 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const calyx_instance = try calyx.Calyx.init(
-        allocator,
-        null,
-        .win32,
-        .english,
-    );
-    defer calyx.Calyx.deinit(calyx_instance);
+    const game = try calyx.GameData.init(allocator, .{});
+    try game.pack.loadRepos();
+    defer game.deinit();
 
-    // Init sqpack
-    try calyx_instance.pack.mountPack();
+    const content = try game.getFileContents(allocator, "chara/equipment/e0436/model/c0101e0436_top.mdl");
+    std.log.err("File contents: {d}\n", .{content.len});
+    defer allocator.free(content);
 }

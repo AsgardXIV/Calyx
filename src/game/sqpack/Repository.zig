@@ -1,18 +1,17 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const Platform = @import("../platform.zig").Platform;
 const GameVersion = @import("../GameVersion.zig");
-
 const RepositoryId = @import("repository_id.zig").RepositoryId;
-
-const Pack = @import("Pack.zig");
-
 const Category = @import("Category.zig");
 const CategoryId = @import("category_id.zig").CategoryId;
 const PackFileName = @import("PackFileName.zig");
 const ParsedGamePath = @import("ParsedGamePath.zig");
 
-const Platform = @import("../platform.zig").Platform;
+const core = @import("../../core.zig");
+
+const MaxCategoryId = core.meta.maxEnumValue(CategoryId);
 
 const Repository = @This();
 
@@ -21,9 +20,15 @@ platform: Platform,
 repo_version: GameVersion,
 repo_id: RepositoryId,
 repo_path: []const u8,
-categories: std.AutoHashMapUnmanaged(CategoryId, *Category),
+categories: [MaxCategoryId + 1]?*Category,
 
-pub fn init(allocator: Allocator, platform: Platform, default_version: GameVersion, repo_id: RepositoryId, repo_path: []const u8) !*Repository {
+pub fn init(
+    allocator: Allocator,
+    platform: Platform,
+    default_version: GameVersion,
+    repo_id: RepositoryId,
+    repo_path: []const u8,
+) !*Repository {
     const repo = try allocator.create(Repository);
     errdefer allocator.destroy(repo);
 
@@ -37,14 +42,14 @@ pub fn init(allocator: Allocator, platform: Platform, default_version: GameVersi
         .repo_version = default_version,
         .repo_id = repo_id,
         .repo_path = cloned_repo_path,
-        .categories = .{},
+        .categories = [_]?*Category{null} ** (MaxCategoryId + 1),
     };
 
     // Setup the version
     try repo.setupVersion();
 
-    // Discover the categories
-    try repo.discoverCategories();
+    // Setup the categories
+    try repo.setupCategories();
 
     return repo;
 }
@@ -56,8 +61,74 @@ pub fn deinit(repo: *Repository) void {
 }
 
 pub fn getFileContents(repo: *Repository, allocator: Allocator, path: ParsedGamePath) ![]const u8 {
-    const category = repo.categories.get(path.category_id) orelse return error.CategoryNotFound;
+    const category = try repo.getCategoryById(path.category_id);
     return category.getFileContents(allocator, path);
+}
+
+fn getCategoryById(repo: *Repository, id: CategoryId) !*Category {
+    if (repo.categories[@intFromEnum(id)]) |cat| {
+        return cat;
+    } else {
+        @branchHint(.cold);
+        return error.InvalidCategory;
+    }
+}
+
+fn setupCategories(repo: *Repository) !void {
+    var sfb = std.heap.stackFallback(2048, repo.allocator);
+    const sfa = sfb.get();
+
+    errdefer cleanupCategories(repo); // If we error at all, we need to cleanup
+
+    cat_loop: for (0..MaxCategoryId + 1) |i| {
+        // Some values are not valid category ids so we need to skip them
+        // Because it's only a few values using a fixed size array is still better than a hash lookup
+        const cat_id = std.meta.intToEnum(CategoryId, i) catch continue;
+
+        // There must be at least one index file
+        ext_loop: for ([_]PackFileName.Extension{ .index, .index2 }) |ext| {
+            const file_name = PackFileName.buildSqPackFileName(
+                sfa,
+                cat_id,
+                repo.repo_id,
+                0,
+                repo.platform,
+                ext,
+                null,
+            ) catch continue :ext_loop;
+            defer sfa.free(file_name);
+
+            const file_path = std.fs.path.join(sfa, &.{ repo.repo_path, file_name }) catch continue :ext_loop;
+            defer sfa.free(file_path);
+
+            std.fs.accessAbsolute(file_path, .{}) catch continue :ext_loop;
+
+            break :ext_loop;
+        } else {
+            continue :cat_loop; // Category has no index
+        }
+
+        // Create the category
+        const category = try Category.init(
+            repo.allocator,
+            repo.platform,
+            repo.repo_id,
+            repo.repo_path,
+            cat_id,
+        );
+
+        // Store the category
+        repo.categories[i] = category;
+    }
+}
+
+fn cleanupCategories(repo: *Repository) void {
+    for (repo.categories, 0..) |cat, i| {
+        if (cat) |category| {
+            category.deinit();
+            repo.categories[i] = null;
+        }
+    }
 }
 
 fn setupVersion(repo: *Repository) !void {
@@ -77,64 +148,4 @@ fn setupVersion(repo: *Repository) !void {
     if (new_version) |ver| {
         repo.repo_version = ver;
     }
-}
-
-fn discoverCategories(repo: *Repository) !void {
-    var sfb = std.heap.stackFallback(2048, repo.allocator);
-    const sfa = sfb.get();
-
-    errdefer cleanupCategories(repo);
-
-    var folder = try std.fs.openDirAbsolute(repo.repo_path, .{ .iterate = true, .no_follow = true });
-    defer folder.close();
-
-    var walker = try folder.walk(sfa);
-    defer walker.deinit();
-    while (try walker.next()) |entry| {
-        // Only want files
-        if (entry.kind != std.fs.Dir.Entry.Kind.file) continue;
-
-        // There must be at least one index file
-        const extension = std.fs.path.extension(entry.basename)[1..];
-        if (!std.mem.eql(u8, extension, PackFileName.Extension.index.toExensionString()) and
-            !std.mem.eql(u8, extension, PackFileName.Extension.index2.toExensionString()))
-        {
-            continue;
-        }
-
-        // Parse it
-        const file_name = try PackFileName.fromPackFileString(entry.basename);
-
-        // Correct platform?
-        if (file_name.platform != repo.platform) continue;
-
-        // If we haven't seen this category before, create it
-        if (!repo.categories.contains(file_name.category_id)) {
-            const category = try Category.init(
-                repo.allocator,
-                repo.platform,
-                repo.repo_id,
-                repo.repo_path,
-                file_name.category_id,
-            );
-            errdefer category.deinit();
-
-            // Add it to the map
-            try repo.categories.put(repo.allocator, file_name.category_id, category);
-        }
-
-        // By now we must have a category
-        const category = repo.categories.get(file_name.category_id) orelse unreachable;
-
-        // Inform the category of the chunk, it's ok if it already exists
-        try category.chunkDiscovered(file_name.chunk_id);
-    }
-}
-
-fn cleanupCategories(repo: *Repository) void {
-    var it = repo.categories.valueIterator();
-    while (it.next()) |category| {
-        category.*.deinit();
-    }
-    repo.categories.deinit(repo.allocator);
 }

@@ -10,7 +10,8 @@ const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig")
 
 allocator: Allocator,
 version: u32,
-id_to_key: std.AutoHashMapUnmanaged(i32, []const u8),
+sheet_names: std.ArrayListUnmanaged([]const u8),
+id_to_key: std.AutoHashMapUnmanaged(u32, []const u8),
 
 pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
     const list = try allocator.create(ExcelList);
@@ -19,6 +20,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
     list.* = .{
         .allocator = allocator,
         .version = 0,
+        .sheet_names = .{},
         .id_to_key = .{},
     };
 
@@ -28,23 +30,21 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
 }
 
 pub fn deinit(list: *ExcelList) void {
-    // Free the sheet names first
-    {
-        var it = list.id_to_key.valueIterator();
-        while (it.next()) |key| {
-            list.allocator.free(key.*);
-        }
-    }
-
-    // Free the hash maps
-    list.id_to_key.deinit(list.allocator);
-
+    list.cleanupSheetNames();
     list.allocator.destroy(list);
 }
 
 /// Get the ID for a given sheet key.
-pub fn getKeyForId(list: *ExcelList, id: i32) ?[]const u8 {
+pub fn getKeyForId(list: *ExcelList, id: u32) ?[]const u8 {
     return list.id_to_key.get(id) orelse null;
+}
+
+/// Check if the list contains a sheet with the given name.
+pub fn hasSheet(list: *ExcelList, sheet_name: []const u8) bool {
+    for (list.sheet_names.items) |name| {
+        if (std.mem.eql(u8, name, sheet_name)) return true;
+    }
+    return false;
 }
 
 fn populate(list: *ExcelList, bsr: *BufferedStreamReader) !void {
@@ -70,6 +70,7 @@ fn populate(list: *ExcelList, bsr: *BufferedStreamReader) !void {
     sfa.free(raw_header);
 
     // Read all lines
+    errdefer list.cleanupSheetNames();
     while (true) {
         const line = readExlLine(sfa, reader.any()) catch |err| {
             if (err == error.EndOfStream) break;
@@ -96,20 +97,35 @@ fn processEntryLine(list: *ExcelList, line: []const u8) !void {
     if (name.len == 0) return error.InvalidEntry;
     const id_str = parts.next() orelse return error.InvalidEntry;
 
-    // Parse the ID
-    const id = try std.fmt.parseInt(i32, id_str, 10);
-
-    // -1 is a special case for "no ID"
-    if (id == -1) return;
-
     // Allocate a heap string for the name
     const heap_str = try list.allocator.dupe(u8, name);
     errdefer list.allocator.free(heap_str);
 
-    // Add to id to key map
-    if (try list.id_to_key.fetchPut(list.allocator, id, heap_str)) |existing| {
-        list.allocator.free(existing.value);
+    // Add to list
+    try list.sheet_names.append(list.allocator, heap_str);
+    errdefer _ = list.sheet_names.pop();
+
+    // Parse the ID
+    const id = try std.fmt.parseInt(i32, id_str, 10);
+
+    // Negative (-1) is a special case for "no ID"
+    if (id >= 0) {
+        // Add to id to key map
+        try list.id_to_key.putNoClobber(list.allocator, @intCast(id), heap_str);
     }
+}
+
+fn cleanupSheetNames(list: *ExcelList) void {
+    // Free the sheet names first
+    for (list.sheet_names.items) |sheet_name| {
+        list.allocator.free(sheet_name);
+    }
+
+    // Free the list
+    list.sheet_names.deinit(list.allocator);
+
+    // Free the hash map
+    list.id_to_key.deinit(list.allocator);
 }
 
 test "excelListTests" {
@@ -128,6 +144,17 @@ test "excelListTests" {
         const expected_key = "EmetWasRight";
         const actual_key = list.getKeyForId(123);
         try std.testing.expectEqualStrings(expected_key, actual_key.?);
+    }
+
+    // No ID key
+    {
+        const content = "EXLT,1337\r\nEmetWasRight,-1\r\n";
+        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        const list = try ExcelList.init(std.testing.allocator, &stream);
+        defer list.deinit();
+        // Check the mapping
+        const expected_key = "EmetWasRight";
+        try std.testing.expect(list.hasSheet(expected_key));
     }
 
     // Invalid magic

@@ -8,14 +8,13 @@ const RepositoryId = @import("repository_id.zig").RepositoryId;
 const CategoryId = @import("category_id.zig").CategoryId;
 const ResolvedGameFile = @import("ResolvedGameFile.zig");
 const PackFileName = @import("PackFileName.zig");
-const DatFile = @import("DatFile.zig");
 const ParsedGamePath = @import("ParsedGamePath.zig");
-
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
-
 const index = @import("index.zig");
 const Index1 = index.Index1;
 const Index2 = index.Index2;
+const DataFile = @import("DataFile.zig");
+
+const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
 const Chunk = @This();
 
@@ -27,9 +26,16 @@ category_id: CategoryId,
 chunk_id: u8,
 index1: ?*Index1 = null,
 index2: ?*Index2 = null,
-dat_files: std.AutoHashMapUnmanaged(u8, *DatFile),
+data_files: []?*DataFile,
 
-pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId, chunk_id: u8) !*Chunk {
+pub fn init(
+    allocator: Allocator,
+    platform: Platform,
+    repo_id: RepositoryId,
+    repo_path: []const u8,
+    category_id: CategoryId,
+    chunk_id: u8,
+) !*Chunk {
     const chunk = try allocator.create(Chunk);
     errdefer allocator.destroy(chunk);
 
@@ -43,20 +49,30 @@ pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, rep
         .repo_path = cloned_repo_path,
         .category_id = category_id,
         .chunk_id = chunk_id,
-        .dat_files = .{},
+        .index1 = null,
+        .index2 = null,
+        .data_files = &[_]?*DataFile{},
     };
 
-    // Setup the indexes
     try chunk.setupIndexes();
+    errdefer chunk.cleanupIndexes();
+
+    try chunk.setupDataFiles();
+    errdefer chunk.cleanupDataFiles();
 
     return chunk;
 }
 
 pub fn deinit(chunk: *Chunk) void {
-    chunk.cleanupDatFiles();
+    chunk.cleanupDataFiles();
     chunk.cleanupIndexes();
     chunk.allocator.free(chunk.repo_path);
     chunk.allocator.destroy(chunk);
+}
+
+pub fn getFileContentsAtOffset(chunk: *Chunk, allocator: Allocator, dat_id: u8, offset: u64) ![]const u8 {
+    const dat_file = try getDataFileById(chunk, dat_id);
+    return try dat_file.getFileContentsAtOffset(allocator, offset);
 }
 
 pub fn lookupFileInIndexes(chunk: *Chunk, path: ParsedGamePath) ?ResolvedGameFile {
@@ -93,34 +109,31 @@ pub fn lookupFileInIndexes(chunk: *Chunk, path: ParsedGamePath) ?ResolvedGameFil
     return null;
 }
 
-pub fn getFileContentsAtOffset(chunk: *Chunk, allocator: Allocator, dat_id: u8, offset: u64) ![]const u8 {
-    const dat_file = try getOrCreateDatFile(chunk, dat_id);
-    return try dat_file.getFileContentsAtOffset(allocator, offset);
-}
-
-fn getOrCreateDatFile(chunk: *Chunk, file_id: u8) !*DatFile {
-    // Check if we already have the dat file
-    const dat_file = chunk.dat_files.get(file_id);
-    if (dat_file) |dat| {
-        return dat;
+fn getDataFileById(chunk: *Chunk, data_file_id: u8) !*DataFile {
+    if (data_file_id >= chunk.data_files.len) {
+        @branchHint(.cold);
+        return error.InvalidDataFileId;
     }
 
-    // If we don't have it, we need to create it
-    const new_dat_file = try DatFile.init(
-        chunk.allocator,
-        chunk.platform,
-        chunk.repo_id,
-        chunk.repo_path,
-        chunk.category_id,
-        chunk.chunk_id,
-        file_id,
-    );
-    errdefer new_dat_file.deinit();
+    if (chunk.data_files[data_file_id] == null) {
+        @branchHint(.unlikely);
 
-    // Store the dat file in the map
-    try chunk.dat_files.put(chunk.allocator, file_id, new_dat_file);
+        const data_file = try DataFile.init(
+            chunk.allocator,
+            chunk.platform,
+            chunk.repo_id,
+            chunk.repo_path,
+            chunk.category_id,
+            chunk.chunk_id,
+            data_file_id,
+        );
 
-    return new_dat_file;
+        chunk.data_files[data_file_id] = data_file;
+
+        return data_file;
+    }
+
+    return chunk.data_files[data_file_id].?;
 }
 
 fn setupIndexes(chunk: *Chunk) !void {
@@ -161,11 +174,29 @@ fn cleanupIndexes(chunk: *Chunk) void {
     if (chunk.index2) |idx| idx.deinit();
 }
 
-fn cleanupDatFiles(chunk: *Chunk) void {
-    var it = chunk.dat_files.valueIterator();
-    while (it.next()) |dat_file| {
-        dat_file.*.deinit();
+fn setupDataFiles(chunk: *Chunk) !void {
+    const data_file_count = blk: {
+        if (chunk.index1) |idx| {
+            break :blk idx.index_header.num_data_files;
+        }
+
+        if (chunk.index2) |idx| {
+            break :blk idx.index_header.num_data_files;
+        }
+
+        break :blk null;
+    } orelse return error.NoDataFiles;
+
+    chunk.data_files = try chunk.allocator.alloc(?*DataFile, data_file_count);
+    @memset(chunk.data_files, null);
+    errdefer chunk.allocator.free(chunk.data_files);
+}
+
+fn cleanupDataFiles(chunk: *Chunk) void {
+    for (chunk.data_files) |opt_datafile| {
+        if (opt_datafile) |data_file| {
+            data_file.deinit();
+        }
     }
-    chunk.dat_files.deinit(chunk.allocator);
-    chunk.dat_files = .{};
+    chunk.allocator.free(chunk.data_files);
 }

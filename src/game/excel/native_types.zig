@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const meta = @import("../../core/meta.zig");
+
 pub const ExcelSheetType = enum(u8) {
     default = 0x1,
     sub_rows = 0x2,
@@ -59,6 +61,36 @@ pub const ExcelColumnType = enum(u16) {
     packed_bool5 = 0x1E,
     packed_bool6 = 0x1F,
     packed_bool7 = 0x20,
+
+    pub fn typeId(self: Self) meta.TypeId {
+        return switch (self) {
+            .string => meta.typeId([]const u8),
+            .i8 => meta.typeId(i8),
+            .u8 => meta.typeId(u8),
+            .i16 => meta.typeId(i16),
+            .u16 => meta.typeId(u16),
+            .i32 => meta.typeId(i32),
+            .u32 => meta.typeId(u32),
+            .f32 => meta.typeId(f32),
+            .i64 => meta.typeId(i64),
+            .u64 => meta.typeId(u64),
+            .bool, .packed_bool0, .packed_bool1, .packed_bool2, .packed_bool3, .packed_bool4, .packed_bool5, .packed_bool6, .packed_bool7 => meta.typeId(bool),
+        };
+    }
+
+    pub fn packedBoolMask(self: Self) !u8 {
+        return switch (self) {
+            .packed_bool0 => 0x01,
+            .packed_bool1 => 0x02,
+            .packed_bool2 => 0x04,
+            .packed_bool3 => 0x08,
+            .packed_bool4 => 0x10,
+            .packed_bool5 => 0x20,
+            .packed_bool6 => 0x40,
+            .packed_bool7 => 0x80,
+            else => return error.InvalidPackedBool,
+        };
+    }
 };
 
 pub const ExcelColumnDefinition = extern struct {

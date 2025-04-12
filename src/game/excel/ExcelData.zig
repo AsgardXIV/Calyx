@@ -58,11 +58,9 @@ fn populate(data: *ExcelData, bsr: *BufferedStreamReader) !void {
     // Read the indexes
     data.indexes = try data.allocator.alloc(ExcelDataOffset, index_count);
     errdefer data.allocator.free(data.indexes);
-    var i: usize = 0;
-    for (data.indexes) |*entry| {
+    for (data.indexes, 0..) |*entry, i| {
         entry.* = try reader.readStructEndian(ExcelDataOffset, .big);
         data.row_to_index.putAssumeCapacity(entry.row_id, i);
-        i += 1;
     }
 
     // We need this to adjust offsets later

@@ -1,11 +1,10 @@
 const std = @import("std");
 
-const calyx_lib = @import("calxy");
-const base = @import("test_base.zig");
+const calyx = @import("calyx");
 
 test "sqpack" {
-    const calyx = try base.startCalyx();
-    defer calyx.deinit();
+    const game_data = try calyx.GameData.init(std.testing.allocator, .{});
+    defer game_data.deinit();
 
     {
         const game_path = "chara/equipment/e0436/material/v0001/mt_c0101e0436_top_a.mtrl";
@@ -13,10 +12,10 @@ test "sqpack" {
 
         std.log.info("Testing standard file: {s}", .{game_path});
 
-        const contents = try calyx.getFileContents(std.testing.allocator, game_path);
+        const contents = try game_data.getFileContents(std.testing.allocator, game_path);
         defer std.testing.allocator.free(contents);
 
-        const hash = calyx_lib.core.hash.crc32(contents);
+        const hash = calyx.core.hash.crc32(contents);
 
         try std.testing.expectEqual(expected_hash, hash);
     }
@@ -27,10 +26,10 @@ test "sqpack" {
 
         std.log.info("Testing tex file: {s}", .{game_path});
 
-        const contents = try calyx.getFileContents(std.testing.allocator, game_path);
+        const contents = try game_data.getFileContents(std.testing.allocator, game_path);
         defer std.testing.allocator.free(contents);
 
-        const hash = calyx_lib.core.hash.crc32(contents);
+        const hash = calyx.core.hash.crc32(contents);
 
         try std.testing.expectEqual(expected_hash, hash);
     }
@@ -41,10 +40,10 @@ test "sqpack" {
 
         std.log.info("Testing mdl file: {s}", .{game_path});
 
-        const contents = try calyx.getFileContents(std.testing.allocator, game_path);
+        const contents = try game_data.getFileContents(std.testing.allocator, game_path);
         defer std.testing.allocator.free(contents);
 
-        const hash = calyx_lib.core.hash.crc32(contents);
+        const hash = calyx.core.hash.crc32(contents);
 
         try std.testing.expectEqual(expected_hash, hash);
     }

@@ -6,8 +6,6 @@ const Platform = @import("../platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const PackFileName = @import("PackFileName.zig");
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
-
 const native_types = @import("native_types.zig");
 const SqPackHeader = native_types.SqPackHeader;
 const FileInfo = native_types.FileInfo;
@@ -18,9 +16,11 @@ const TextureFileInfo = native_types.TextureFileInfo;
 const TextureFileBlockInfo = native_types.TextureFileBlockInfo;
 const ModelFileInfo = native_types.ModelFileInfo;
 
-const DatFile = @This();
+const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
 
 const WriteStream = std.io.FixedBufferStream([]u8);
+
+const DataFile = @This();
 
 allocator: Allocator,
 platform: Platform,
@@ -31,14 +31,22 @@ chunk_id: u8,
 file_id: u8,
 bsr: BufferedStreamReader,
 
-pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, repo_path: []const u8, category_id: CategoryId, chunk_id: u8, file_id: u8) !*DatFile {
-    const dat = try allocator.create(DatFile);
-    errdefer allocator.destroy(dat);
+pub fn init(
+    allocator: Allocator,
+    platform: Platform,
+    repo_id: RepositoryId,
+    repo_path: []const u8,
+    category_id: CategoryId,
+    chunk_id: u8,
+    file_id: u8,
+) !*DataFile {
+    const data_file = try allocator.create(DataFile);
+    errdefer allocator.destroy(data_file);
 
     const cloned_repo_path = try allocator.dupe(u8, repo_path);
     errdefer allocator.free(cloned_repo_path);
 
-    dat.* = .{
+    data_file.* = .{
         .allocator = allocator,
         .platform = platform,
         .repo_id = repo_id,
@@ -49,26 +57,26 @@ pub fn init(allocator: Allocator, platform: Platform, repo_id: RepositoryId, rep
         .bsr = undefined,
     };
 
-    try dat.mountDatFile();
+    try data_file.mountDataFile();
 
-    return dat;
+    return data_file;
 }
 
-pub fn deinit(dat: *DatFile) void {
-    dat.bsr.close();
-    dat.allocator.free(dat.repo_path);
-    dat.allocator.destroy(dat);
+pub fn deinit(data_file: *DataFile) void {
+    data_file.bsr.close();
+    data_file.allocator.free(data_file.repo_path);
+    data_file.allocator.destroy(data_file);
 }
 
-pub fn getFileContentsAtOffset(dat: *DatFile, allocator: Allocator, offset: u64) ![]const u8 {
-    return readFile(dat, allocator, offset);
+pub fn getFileContentsAtOffset(data_file: *DataFile, allocator: Allocator, offset: u64) ![]const u8 {
+    return data_file.readFile(allocator, offset);
 }
 
-fn readFile(dat: *DatFile, allocator: Allocator, offset: u64) ![]const u8 {
-    const reader = dat.bsr.reader();
+fn readFile(data_file: *DataFile, allocator: Allocator, offset: u64) ![]const u8 {
+    const reader = data_file.bsr.reader();
 
     // Jump to the offset first
-    try dat.bsr.seekTo(offset);
+    try data_file.bsr.seekTo(offset);
 
     // Read the file info
     const file_info = try reader.readStruct(FileInfo);
@@ -81,89 +89,97 @@ fn readFile(dat: *DatFile, allocator: Allocator, offset: u64) ![]const u8 {
     // Determine the file type
     switch (file_info.file_type) {
         .empty => {},
-        .standard => try dat.readStandardFile(offset, file_info, &write_stream),
-        .texture => try dat.readTextureFile(offset, file_info, &write_stream),
-        .model => try dat.readModelFile(offset, file_info, &write_stream),
+        .standard => try data_file.readStandardFile(offset, file_info, &write_stream),
+        .texture => try data_file.readTextureFile(offset, file_info, &write_stream),
+        .model => try data_file.readModelFile(offset, file_info, &write_stream),
         else => return error.UnknownFileType,
     }
 
     return raw_bytes;
 }
 
-fn readStandardFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
-    var sfb = std.heap.stackFallback(4096, dat.allocator);
+fn readStandardFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
+    var sfb = std.heap.stackFallback(4096, data_file.allocator);
     const sfa = sfb.get();
 
     // Read the standard file info
-    const standard_file_info = try dat.bsr.reader().readStruct(StandardFileInfo);
+    const standard_file_info = try data_file.bsr.reader().readStruct(StandardFileInfo);
 
     // Read the block infos
     const block_count = standard_file_info.num_of_blocks;
     const blocks = try sfa.alloc(StandardFileBlockInfo, block_count);
     defer sfa.free(blocks);
     const block_slice = std.mem.sliceAsBytes(blocks);
-    _ = try dat.bsr.reader().readAll(block_slice);
+    _ = try data_file.bsr.reader().readAll(block_slice);
 
     // Now we can read the actual blocks
     for (blocks) |*block| {
         const calculated_offset = base_offset + file_info.header_size + block.offset;
-        _ = try dat.readFileBlock(calculated_offset, write_stream);
+        _ = try data_file.readFileBlock(calculated_offset, write_stream);
     }
 }
 
-fn readTextureFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
-    var sfb = std.heap.stackFallback(4096, dat.allocator);
+fn readTextureFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
+    var sfb = std.heap.stackFallback(4096, data_file.allocator);
     const sfa = sfb.get();
 
     // Read the texture file info
-    const texture_file_info = try dat.bsr.reader().readStruct(TextureFileInfo);
+    const texture_file_info = try data_file.bsr.reader().readStruct(TextureFileInfo);
 
     // Read the block infos
     const block_count = texture_file_info.num_of_blocks;
     const blocks = try sfa.alloc(TextureFileBlockInfo, block_count);
     defer sfa.free(blocks);
     const block_slice = std.mem.sliceAsBytes(blocks);
-    _ = try dat.bsr.reader().readAll(block_slice);
+    _ = try data_file.bsr.reader().readAll(block_slice);
 
     // Read mip data
     const mip_size = blocks[0].compressed_offset;
     if (mip_size != 0) {
-        const original_position = try dat.bsr.getPos();
+        const original_position = try data_file.bsr.getPos();
 
-        try dat.bsr.seekTo(base_offset + file_info.header_size);
+        try data_file.bsr.seekTo(base_offset + file_info.header_size);
         const mip_slice = write_stream.buffer[write_stream.pos..][0..mip_size];
-        const mip_bytes_read = try dat.bsr.reader().readAll(mip_slice);
+        const mip_bytes_read = try data_file.bsr.reader().readAll(mip_slice);
         write_stream.pos += mip_bytes_read;
 
-        try dat.bsr.seekTo(original_position);
+        try data_file.bsr.seekTo(original_position);
     }
 
-    // Now we can read the actual blocks
+    // Sum the block counts
+    var sub_block_count: usize = 0;
     for (blocks) |*block| {
-        var running_total: u64 = base_offset + file_info.header_size + block.compressed_offset;
+        sub_block_count += block.block_count;
+    }
+
+    // Read the sub block offsets
+    const sub_block_offsets = try sfa.alloc(u16, sub_block_count);
+    defer sfa.free(sub_block_offsets);
+    const sub_block_offsets_slice = std.mem.sliceAsBytes(sub_block_offsets);
+    _ = try data_file.bsr.reader().readAll(sub_block_offsets_slice);
+
+    // Now we can read the actual blocks
+    var sub_block_index: usize = 0;
+    for (blocks) |*block| {
+        const root_offset = base_offset + file_info.header_size + block.compressed_offset;
+        var next_offset = root_offset;
         for (0..block.block_count) |_| {
-            // Remember position again
-            const original_position = try dat.bsr.getPos();
-
             // Read the actual block
-            _ = try dat.readFileBlock(running_total, write_stream);
+            _ = try data_file.readFileBlock(next_offset, write_stream);
 
-            // Go back to the original position
-            try dat.bsr.seekTo(original_position);
-
-            // Get the offset to the next block and add it to the running total
-            const offset_to_next = try dat.bsr.reader().readInt(u16, .little);
-            running_total += offset_to_next;
+            // Increment the sub block index
+            next_offset += sub_block_offsets[sub_block_index];
+            sub_block_index += 1;
         }
     }
 }
 
-fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
-    var sfb = std.heap.stackFallback(4096, dat.allocator);
+fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, write_stream: *WriteStream) !void {
+    var sfb = std.heap.stackFallback(4096, data_file.allocator);
     const sfa = sfb.get();
 
     // Read the model file info
-    const model_file_info = try dat.bsr.reader().readStruct(ModelFileInfo);
+    const model_file_info = try data_file.bsr.reader().readStruct(ModelFileInfo);
 
     // Calculate total blocks
     const total_blocks = model_file_info.num.calculateTotal();
@@ -172,7 +188,7 @@ fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_str
     const compressed_block_sizes = try sfa.alloc(u16, total_blocks);
     defer sfa.free(compressed_block_sizes);
     const compressed_block_slice = std.mem.sliceAsBytes(compressed_block_sizes);
-    _ = try dat.bsr.reader().readAll(compressed_block_slice);
+    _ = try data_file.bsr.reader().readAll(compressed_block_slice);
 
     // Setup some temp data
     var vertex_data_offsets: [ModelFileInfo.LodLevels]u32 = undefined;
@@ -190,18 +206,18 @@ fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_str
     var current_block: u32 = 0;
 
     const stack_offset = base_offset + file_info.header_size + model_file_info.offset.stack_size;
-    const stack_result = try dat.readModelBlocks(stack_offset, model_file_info.num.stack_size, current_block, compressed_block_sizes, write_stream);
+    const stack_result = try data_file.readModelBlocks(stack_offset, model_file_info.num.stack_size, current_block, compressed_block_sizes, write_stream);
     current_block = stack_result.next_block;
     const stack_size: u32 = @intCast(stack_result.size);
 
     const runtime_offset = base_offset + file_info.header_size + model_file_info.offset.runtime_size;
-    const runtime_result = try dat.readModelBlocks(runtime_offset, model_file_info.num.runtime_size, current_block, compressed_block_sizes, write_stream);
+    const runtime_result = try data_file.readModelBlocks(runtime_offset, model_file_info.num.runtime_size, current_block, compressed_block_sizes, write_stream);
     current_block = runtime_result.next_block;
     const runtime_size: u32 = @intCast(runtime_result.size);
 
     for (0..ModelFileInfo.LodLevels) |lod| {
         const vertex_offset = base_offset + file_info.header_size + model_file_info.offset.vertex_buffer_size[lod];
-        current_block = try dat.processModelData(
+        current_block = try data_file.processModelData(
             lod,
             vertex_offset,
             model_file_info.num.vertex_buffer_size[lod],
@@ -214,7 +230,7 @@ fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_str
 
         // TODO: Is this even correct? No models seem to have this data for win32
         const edge_data_offset = base_offset + file_info.header_size + model_file_info.offset.edge_geometry_vertex_buffer_size[lod];
-        current_block = try dat.processModelData(
+        current_block = try data_file.processModelData(
             lod,
             edge_data_offset,
             model_file_info.num.edge_geometry_vertex_buffer_size[lod],
@@ -226,7 +242,7 @@ fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_str
         );
 
         const index_offset = base_offset + file_info.header_size + model_file_info.offset.index_buffer_size[lod];
-        current_block = try dat.processModelData(
+        current_block = try data_file.processModelData(
             lod,
             index_offset,
             model_file_info.num.index_buffer_size[lod],
@@ -264,22 +280,22 @@ fn readModelFile(dat: *DatFile, base_offset: u64, file_info: FileInfo, write_str
     try writer.writeInt(u8, 0, .little);
 }
 
-fn readModelBlocks(dat: *DatFile, offset: u64, size: usize, start_block: u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !struct { size: u64, next_block: u32 } {
+fn readModelBlocks(data_file: *DataFile, offset: u64, size: usize, start_block: u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !struct { size: u64, next_block: u32 } {
     const stack_start = write_stream.pos;
     var current_block = start_block;
-    try dat.bsr.seekTo(offset);
+    try data_file.bsr.seekTo(offset);
 
     for (0..size) |_| {
-        const last_pos = try dat.bsr.getPos();
-        _ = try dat.readFileBlock(null, write_stream);
-        try dat.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
+        const last_pos = try data_file.bsr.getPos();
+        _ = try data_file.readFileBlock(null, write_stream);
+        try data_file.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
         current_block += 1;
     }
     const stack_size = write_stream.pos - stack_start;
     return .{ .size = stack_size, .next_block = current_block };
 }
 
-fn processModelData(dat: *DatFile, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[ModelFileInfo.LodLevels]u32, data_sizes: *[ModelFileInfo.LodLevels]u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !u32 {
+fn processModelData(data_file: *DataFile, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[ModelFileInfo.LodLevels]u32, data_sizes: *[ModelFileInfo.LodLevels]u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !u32 {
     var current_block = start_block;
     offsets[lod] = 0;
     data_sizes[lod] = 0;
@@ -290,14 +306,14 @@ fn processModelData(dat: *DatFile, lod: usize, offset: u64, size: usize, start_b
             offsets[lod] = current_vertex_offset;
         }
 
-        try dat.bsr.seekTo(offset);
+        try data_file.bsr.seekTo(offset);
 
         for (0..size) |_| {
-            const last_pos = try dat.bsr.getPos();
-            const bytes_read = try dat.readFileBlock(null, write_stream);
+            const last_pos = try data_file.bsr.getPos();
+            const bytes_read = try data_file.readFileBlock(null, write_stream);
             data_sizes[lod] += @intCast(bytes_read);
 
-            try dat.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
+            try data_file.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
             current_block += 1;
         }
     }
@@ -305,13 +321,13 @@ fn processModelData(dat: *DatFile, lod: usize, offset: u64, size: usize, start_b
     return current_block;
 }
 
-fn readFileBlock(dat: *DatFile, offset: ?u64, write_stream: *WriteStream) !u64 {
+fn readFileBlock(data_file: *DataFile, offset: ?u64, write_stream: *WriteStream) !u64 {
     // We need to seek to the block offset
     if (offset) |x| {
-        try dat.bsr.seekTo(x);
+        try data_file.bsr.seekTo(x);
     }
 
-    const reader = dat.bsr.reader();
+    const reader = data_file.bsr.reader();
 
     // Read the block header
     const block_header = try reader.readStruct(BlockHeader);
@@ -331,29 +347,29 @@ fn readFileBlock(dat: *DatFile, offset: ?u64, write_stream: *WriteStream) !u64 {
     }
 }
 
-fn mountDatFile(dat: *DatFile) !void {
-    var sfb = std.heap.stackFallback(2048, dat.allocator);
+fn mountDataFile(data_file: *DataFile) !void {
+    var sfb = std.heap.stackFallback(2048, data_file.allocator);
     const sfa = sfb.get();
 
     const pack_file_name = PackFileName{
-        .platform = dat.platform,
-        .repo_id = dat.repo_id,
-        .category_id = dat.category_id,
-        .chunk_id = dat.chunk_id,
+        .platform = data_file.platform,
+        .repo_id = data_file.repo_id,
+        .category_id = data_file.category_id,
+        .chunk_id = data_file.chunk_id,
         .file_extension = PackFileName.Extension.dat,
-        .file_idx = dat.file_id,
+        .file_idx = data_file.file_id,
     };
 
     const pack_file_str = try pack_file_name.toPackFileString(sfa);
     defer sfa.free(pack_file_str);
 
-    const file_path = try std.fs.path.join(sfa, &.{ dat.repo_path, pack_file_str });
+    const file_path = try std.fs.path.join(sfa, &.{ data_file.repo_path, pack_file_str });
     defer sfa.free(file_path);
 
-    dat.bsr = try BufferedStreamReader.initFromPath(file_path);
+    data_file.bsr = try BufferedStreamReader.initFromPath(file_path);
 
-    if (dat.file_id == 0) {
-        const header = try dat.bsr.reader().readStruct(SqPackHeader);
+    if (data_file.file_id == 0) {
+        const header = try data_file.bsr.reader().readStruct(SqPackHeader);
         try header.validateMagic();
     }
 }
