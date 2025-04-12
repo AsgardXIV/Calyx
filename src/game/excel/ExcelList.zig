@@ -6,14 +6,14 @@ const ExcelList = @This();
 const Magic = "EXLT";
 const LineDelimiter = "\r\n";
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+const FixedBufferStream = std.io.FixedBufferStream([]const u8);
 
 allocator: Allocator,
 version: u32,
 sheet_names: std.ArrayListUnmanaged([]const u8),
 id_to_key: std.AutoHashMapUnmanaged(u32, []const u8),
 
-pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
+pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*ExcelList {
     const list = try allocator.create(ExcelList);
     errdefer allocator.destroy(list);
 
@@ -24,7 +24,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelList {
         .id_to_key = .{},
     };
 
-    try list.populate(bsr);
+    try list.populate(fbs);
 
     return list;
 }
@@ -47,8 +47,8 @@ pub fn hasSheet(list: *ExcelList, sheet_name: []const u8) bool {
     return false;
 }
 
-fn populate(list: *ExcelList, bsr: *BufferedStreamReader) !void {
-    const reader = bsr.reader();
+fn populate(list: *ExcelList, fbs: *FixedBufferStream) !void {
+    const reader = fbs.reader();
 
     var sfb = std.heap.stackFallback(2048, list.allocator);
     const sfa = sfb.get();
@@ -133,7 +133,7 @@ test "excelListTests" {
     // Valid file
     {
         const content = "EXLT,1337\r\nEmetWasRight,123\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const list = try ExcelList.init(std.testing.allocator, &stream);
         defer list.deinit();
 
@@ -149,7 +149,7 @@ test "excelListTests" {
     // No ID key
     {
         const content = "EXLT,1337\r\nEmetWasRight,-1\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const list = try ExcelList.init(std.testing.allocator, &stream);
         defer list.deinit();
         // Check the mapping
@@ -160,7 +160,7 @@ test "excelListTests" {
     // Invalid magic
     {
         const content = "INVALID_MAGIC,1337\r\nEmetWasRight,123\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -168,7 +168,7 @@ test "excelListTests" {
     // Invalid header
     {
         const content = "Blahblah\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -176,7 +176,7 @@ test "excelListTests" {
     // Invalid Version
     {
         const content = "Blahblah,notanum\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -184,7 +184,7 @@ test "excelListTests" {
     // Missing value
     {
         const content = "EXLT,1337\r\nEmetWasRight\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -192,7 +192,7 @@ test "excelListTests" {
     // Blank value
     {
         const content = "EXLT,1337\r\nEmetWasRight,\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -200,7 +200,7 @@ test "excelListTests" {
     // Blank key
     {
         const content = "EXLT,1337\r\n,123\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -208,7 +208,7 @@ test "excelListTests" {
     // Invalid value
     {
         const content = "EXLT,1337\r\nEmetWasRight,notanum\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }
@@ -216,7 +216,7 @@ test "excelListTests" {
     // Bad line end
     {
         const content = "EXLT,1337\rEmetWasRight,123\r\n";
-        var stream = BufferedStreamReader.initFromConstBuffer(content);
+        var stream = std.io.fixedBufferStream(content);
         const result = ExcelList.init(std.testing.allocator, &stream) catch null;
         try std.testing.expectEqual(null, result);
     }

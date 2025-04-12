@@ -7,8 +7,6 @@ const Repository = @import("Repository.zig");
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const ParsedGamePath = @import("ParsedGamePath.zig");
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
-
 const Pack = @This();
 
 allocator: Allocator,
@@ -62,10 +60,10 @@ pub fn getTypedFile(pack: *Pack, allocator: Allocator, comptime FileType: type, 
     defer allocator.free(raw_contents);
 
     // Create a buffered stream reader
-    var buffered_stream_reader = BufferedStreamReader.initFromConstBuffer(raw_contents);
+    var fbs = std.io.fixedBufferStream(raw_contents);
 
     // Deserialize the file contents
-    const typed_contents = try FileType.init(allocator, &buffered_stream_reader);
+    const typed_contents = try FileType.init(allocator, &fbs);
     errdefer typed_contents.deinit();
 
     return typed_contents;

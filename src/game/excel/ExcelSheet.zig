@@ -12,8 +12,6 @@ const ExcelDataRowPreamble = native_types.ExcelDataRowPreamble;
 const Pack = @import("../sqpack/Pack.zig");
 const Language = @import("../language.zig").Language;
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
-
 const ExcelSheet = @This();
 
 const RawRowData = struct {
@@ -86,16 +84,15 @@ pub fn getRawRow(sheet: *ExcelSheet, row_id: u32) !ExcelRawRow {
 }
 
 fn sliceFromDataAndOffset(data: *ExcelData, offset: ExcelDataOffset) !struct { []const u8, u16 } {
-    var bsr = BufferedStreamReader.initFromConstBuffer(data.raw_sheet_data);
-    defer bsr.close();
+    var fbs = std.io.fixedBufferStream(data.raw_sheet_data);
 
     const true_offset = offset.offset - data.data_start;
-    try bsr.seekTo(true_offset);
+    try fbs.seekTo(true_offset);
 
-    const row_preamble = try bsr.reader().readStructEndian(ExcelDataRowPreamble, .big);
+    const row_preamble = try fbs.reader().readStructEndian(ExcelDataRowPreamble, .big);
     const row_size = row_preamble.data_size;
 
-    const first_data = try bsr.getPos();
+    const first_data = try fbs.getPos();
 
     const row_buffer = data.raw_sheet_data[first_data .. first_data + row_size];
 

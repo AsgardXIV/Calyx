@@ -8,7 +8,7 @@ const ExcelPageDefinition = native_types.ExcelPageDefinition;
 
 const Language = @import("../language.zig").Language;
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+const FixedBufferStream = std.io.FixedBufferStream([]const u8);
 
 const ExcelHeader = @This();
 
@@ -18,7 +18,7 @@ column_definitions: []ExcelColumnDefinition,
 page_definitions: []ExcelPageDefinition,
 languages: []Language,
 
-pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelHeader {
+pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*ExcelHeader {
     const header = try allocator.create(ExcelHeader);
     errdefer allocator.destroy(header);
 
@@ -30,7 +30,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelHeader {
         .languages = undefined,
     };
 
-    try header.populate(bsr);
+    try header.populate(fbs);
 
     return header;
 }
@@ -56,8 +56,8 @@ pub fn hasNoneLanguage(header: *ExcelHeader) bool {
     return hasLanguage(header, Language.none);
 }
 
-fn populate(header: *ExcelHeader, bsr: *BufferedStreamReader) !void {
-    const reader = bsr.reader();
+fn populate(header: *ExcelHeader, fbs: *FixedBufferStream) !void {
+    const reader = fbs.reader();
 
     // Read the header
     header.header = try reader.readStructEndian(ExcelHeaderHeader, .big);

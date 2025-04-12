@@ -16,7 +16,7 @@ const TextureFileInfo = native_types.TextureFileInfo;
 const TextureFileBlockInfo = native_types.TextureFileBlockInfo;
 const ModelFileInfo = native_types.ModelFileInfo;
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+const BufferedFileReader = @import("../../core/io/BufferedFileReader.zig");
 
 const WriteStream = std.io.FixedBufferStream([]u8);
 
@@ -29,7 +29,7 @@ repo_path: []const u8,
 category_id: CategoryId,
 chunk_id: u8,
 file_id: u8,
-bsr: BufferedStreamReader,
+bfr: BufferedFileReader,
 
 pub fn init(
     allocator: Allocator,
@@ -54,7 +54,7 @@ pub fn init(
         .category_id = category_id,
         .chunk_id = chunk_id,
         .file_id = file_id,
-        .bsr = undefined,
+        .bfr = undefined,
     };
 
     try data_file.mountDataFile();
@@ -63,7 +63,7 @@ pub fn init(
 }
 
 pub fn deinit(data_file: *DataFile) void {
-    data_file.bsr.close();
+    data_file.bfr.close();
     data_file.allocator.free(data_file.repo_path);
     data_file.allocator.destroy(data_file);
 }
@@ -73,10 +73,10 @@ pub fn getFileContentsAtOffset(data_file: *DataFile, allocator: Allocator, offse
 }
 
 fn readFile(data_file: *DataFile, allocator: Allocator, offset: u64) ![]const u8 {
-    const reader = data_file.bsr.reader();
+    const reader = data_file.bfr.reader();
 
     // Jump to the offset first
-    try data_file.bsr.seekTo(offset);
+    try data_file.bfr.seekTo(offset);
 
     // Read the file info
     const file_info = try reader.readStruct(FileInfo);
@@ -103,14 +103,14 @@ fn readStandardFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo,
     const sfa = sfb.get();
 
     // Read the standard file info
-    const standard_file_info = try data_file.bsr.reader().readStruct(StandardFileInfo);
+    const standard_file_info = try data_file.bfr.reader().readStruct(StandardFileInfo);
 
     // Read the block infos
     const block_count = standard_file_info.num_of_blocks;
     const blocks = try sfa.alloc(StandardFileBlockInfo, block_count);
     defer sfa.free(blocks);
     const block_slice = std.mem.sliceAsBytes(blocks);
-    _ = try data_file.bsr.reader().readAll(block_slice);
+    _ = try data_file.bfr.reader().readAll(block_slice);
 
     // Now we can read the actual blocks
     for (blocks) |*block| {
@@ -124,26 +124,26 @@ fn readTextureFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, 
     const sfa = sfb.get();
 
     // Read the texture file info
-    const texture_file_info = try data_file.bsr.reader().readStruct(TextureFileInfo);
+    const texture_file_info = try data_file.bfr.reader().readStruct(TextureFileInfo);
 
     // Read the block infos
     const block_count = texture_file_info.num_of_blocks;
     const blocks = try sfa.alloc(TextureFileBlockInfo, block_count);
     defer sfa.free(blocks);
     const block_slice = std.mem.sliceAsBytes(blocks);
-    _ = try data_file.bsr.reader().readAll(block_slice);
+    _ = try data_file.bfr.reader().readAll(block_slice);
 
     // Read mip data
     const mip_size = blocks[0].compressed_offset;
     if (mip_size != 0) {
-        const original_position = try data_file.bsr.getPos();
+        const original_position = try data_file.bfr.getPos();
 
-        try data_file.bsr.seekTo(base_offset + file_info.header_size);
+        try data_file.bfr.seekTo(base_offset + file_info.header_size);
         const mip_slice = write_stream.buffer[write_stream.pos..][0..mip_size];
-        const mip_bytes_read = try data_file.bsr.reader().readAll(mip_slice);
+        const mip_bytes_read = try data_file.bfr.reader().readAll(mip_slice);
         write_stream.pos += mip_bytes_read;
 
-        try data_file.bsr.seekTo(original_position);
+        try data_file.bfr.seekTo(original_position);
     }
 
     // Sum the block counts
@@ -156,7 +156,7 @@ fn readTextureFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, 
     const sub_block_offsets = try sfa.alloc(u16, sub_block_count);
     defer sfa.free(sub_block_offsets);
     const sub_block_offsets_slice = std.mem.sliceAsBytes(sub_block_offsets);
-    _ = try data_file.bsr.reader().readAll(sub_block_offsets_slice);
+    _ = try data_file.bfr.reader().readAll(sub_block_offsets_slice);
 
     // Now we can read the actual blocks
     var sub_block_index: usize = 0;
@@ -179,7 +179,7 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
     const sfa = sfb.get();
 
     // Read the model file info
-    const model_file_info = try data_file.bsr.reader().readStruct(ModelFileInfo);
+    const model_file_info = try data_file.bfr.reader().readStruct(ModelFileInfo);
 
     // Calculate total blocks
     const total_blocks = model_file_info.num.calculateTotal();
@@ -188,7 +188,7 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
     const compressed_block_sizes = try sfa.alloc(u16, total_blocks);
     defer sfa.free(compressed_block_sizes);
     const compressed_block_slice = std.mem.sliceAsBytes(compressed_block_sizes);
-    _ = try data_file.bsr.reader().readAll(compressed_block_slice);
+    _ = try data_file.bfr.reader().readAll(compressed_block_slice);
 
     // Setup some temp data
     var vertex_data_offsets: [ModelFileInfo.LodLevels]u32 = undefined;
@@ -283,12 +283,12 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
 fn readModelBlocks(data_file: *DataFile, offset: u64, size: usize, start_block: u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !struct { size: u64, next_block: u32 } {
     const stack_start = write_stream.pos;
     var current_block = start_block;
-    try data_file.bsr.seekTo(offset);
+    try data_file.bfr.seekTo(offset);
 
     for (0..size) |_| {
-        const last_pos = try data_file.bsr.getPos();
+        const last_pos = try data_file.bfr.getPos();
         _ = try data_file.readFileBlock(null, write_stream);
-        try data_file.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
+        try data_file.bfr.seekTo(last_pos + compressed_block_sizes[current_block]);
         current_block += 1;
     }
     const stack_size = write_stream.pos - stack_start;
@@ -306,14 +306,14 @@ fn processModelData(data_file: *DataFile, lod: usize, offset: u64, size: usize, 
             offsets[lod] = current_vertex_offset;
         }
 
-        try data_file.bsr.seekTo(offset);
+        try data_file.bfr.seekTo(offset);
 
         for (0..size) |_| {
-            const last_pos = try data_file.bsr.getPos();
+            const last_pos = try data_file.bfr.getPos();
             const bytes_read = try data_file.readFileBlock(null, write_stream);
             data_sizes[lod] += @intCast(bytes_read);
 
-            try data_file.bsr.seekTo(last_pos + compressed_block_sizes[current_block]);
+            try data_file.bfr.seekTo(last_pos + compressed_block_sizes[current_block]);
             current_block += 1;
         }
     }
@@ -324,10 +324,10 @@ fn processModelData(data_file: *DataFile, lod: usize, offset: u64, size: usize, 
 fn readFileBlock(data_file: *DataFile, offset: ?u64, write_stream: *WriteStream) !u64 {
     // We need to seek to the block offset
     if (offset) |x| {
-        try data_file.bsr.seekTo(x);
+        try data_file.bfr.seekTo(x);
     }
 
-    const reader = data_file.bsr.reader();
+    const reader = data_file.bfr.reader();
 
     // Read the block header
     const block_header = try reader.readStruct(BlockHeader);
@@ -366,10 +366,10 @@ fn mountDataFile(data_file: *DataFile) !void {
     const file_path = try std.fs.path.join(sfa, &.{ data_file.repo_path, pack_file_str });
     defer sfa.free(file_path);
 
-    data_file.bsr = try BufferedStreamReader.initFromPath(file_path);
+    data_file.bfr = try BufferedFileReader.initFromPath(file_path);
 
     if (data_file.file_id == 0) {
-        const header = try data_file.bsr.reader().readStruct(SqPackHeader);
+        const header = try data_file.bfr.reader().readStruct(SqPackHeader);
         try header.validateMagic();
     }
 }

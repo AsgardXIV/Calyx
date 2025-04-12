@@ -5,7 +5,7 @@ const native_types = @import("native_types.zig");
 const ExcelDataHeader = native_types.ExcelDataHeader;
 const ExcelDataOffset = native_types.ExcelDataOffset;
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+const FixedBufferStream = std.io.FixedBufferStream([]const u8);
 
 const ExcelData = @This();
 
@@ -16,7 +16,7 @@ data_start: u32,
 raw_sheet_data: []const u8,
 row_to_index: std.AutoHashMapUnmanaged(u32, usize),
 
-pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
+pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*ExcelData {
     const data = try allocator.create(ExcelData);
     errdefer allocator.destroy(data);
 
@@ -29,7 +29,7 @@ pub fn init(allocator: Allocator, bsr: *BufferedStreamReader) !*ExcelData {
         .row_to_index = .{},
     };
 
-    try data.populate(bsr);
+    try data.populate(fbs);
 
     return data;
 }
@@ -41,8 +41,8 @@ pub fn deinit(data: *ExcelData) void {
     data.allocator.destroy(data);
 }
 
-fn populate(data: *ExcelData, bsr: *BufferedStreamReader) !void {
-    const reader = bsr.reader();
+fn populate(data: *ExcelData, fbs: *FixedBufferStream) !void {
+    const reader = fbs.reader();
 
     // Read the header
     data.header = try reader.readStructEndian(ExcelDataHeader, .big);
@@ -64,11 +64,11 @@ fn populate(data: *ExcelData, bsr: *BufferedStreamReader) !void {
     }
 
     // We need this to adjust offsets later
-    data.data_start = @intCast(try bsr.getPos());
+    data.data_start = @intCast(try fbs.getPos());
 
     // Read until EOF
-    const data_size = try bsr.getRemaining();
-    const buffer = try data.allocator.alloc(u8, data_size);
+    const remaining = try fbs.getEndPos() - try fbs.getPos();
+    const buffer = try data.allocator.alloc(u8, remaining);
     errdefer data.allocator.free(data.raw_sheet_data);
     _ = try reader.readAll(buffer);
     data.raw_sheet_data = buffer;

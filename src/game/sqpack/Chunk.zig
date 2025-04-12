@@ -14,7 +14,7 @@ const Index1 = index.Index1;
 const Index2 = index.Index2;
 const DataFile = @import("DataFile.zig");
 
-const BufferedStreamReader = @import("../../core/io/buffered_stream_reader.zig").BufferedStreamReader;
+const BufferedFileReader = @import("../../core/io/BufferedFileReader.zig");
 
 const Chunk = @This();
 
@@ -159,7 +159,7 @@ fn setupIndex(chunk: *Chunk, comptime IndexType: type, extension: PackFileName.E
     const index_path = try std.fs.path.join(sfa, &.{ chunk.repo_path, index_filename });
     defer sfa.free(index_path);
 
-    var buffer = BufferedStreamReader.initFromPath(index_path) catch null;
+    var buffer = BufferedFileReader.initFromPath(index_path) catch null;
     defer if (buffer) |*buf| buf.close();
 
     if (buffer) |*buf| {

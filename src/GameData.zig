@@ -125,7 +125,7 @@ pub fn getFileContents(data: *GameData, allocator: Allocator, path: []const u8) 
 /// Loads a file from the pack and deserializes it into the given type.
 ///
 /// The type `FileType` must implement the following methods:
-/// - `pub fn init(allocator: Allocator, stream: *BufferedStreamReader) !*FileType`
+/// - `pub fn init(allocator: Allocator, stream: *std.io.FixedBufferStream([]const u8)) !*FileType`
 /// - `pub fn deinit(self: *FileType) void`
 ///
 /// init must allocate the instance using the provided allocator and initialize it from the stream.
