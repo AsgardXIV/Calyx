@@ -16,7 +16,6 @@
         // Files
         ".gitignore",
         ".gitattributes",
-        ".zigversion",
         "build.zig",
         "build.zig.zon",
         "README.md",
