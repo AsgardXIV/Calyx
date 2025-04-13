@@ -10,6 +10,8 @@ const Language = @import("../language.zig").Language;
 
 const FixedBufferStream = std.io.FixedBufferStream([]const u8);
 
+const hash = @import("../../core/hash.zig");
+
 const ExcelHeader = @This();
 
 allocator: Allocator,
@@ -54,6 +56,20 @@ pub fn hasLanguage(header: *ExcelHeader, language: Language) bool {
 
 pub fn hasNoneLanguage(header: *ExcelHeader) bool {
     return hasLanguage(header, Language.none);
+}
+
+pub fn getColumnsHash(header: *ExcelHeader) u32 {
+    var hasher = hash.Crc32.init();
+    var buf: [4]u8 = undefined;
+
+    // We need to ensure we hash a big endian version to match other tools
+    for (header.column_definitions) |col| {
+        std.mem.writeInt(u16, buf[0..2], @intFromEnum(col.column_type), .big);
+        std.mem.writeInt(u16, buf[2..], col.offset, .big);
+        hasher.update(&buf);
+    }
+
+    return hasher.final();
 }
 
 fn populate(header: *ExcelHeader, fbs: *FixedBufferStream) !void {

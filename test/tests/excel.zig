@@ -194,4 +194,15 @@ test "excel" {
         const expected = error.InvalidColumnId;
         try std.testing.expectError(expected, sub_row);
     }
+
+    // Test column hash
+    {
+        std.log.info("Testing column hash", .{});
+
+        const sheet = try game_data.getSheet("BuddyAction");
+        const column_hash = sheet.excel_header.getColumnsHash();
+
+        const expected: u32 = 0x9A695BEC;
+        try std.testing.expectEqual(expected, column_hash);
+    }
 }

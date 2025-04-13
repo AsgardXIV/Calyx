@@ -1,9 +1,11 @@
 const std = @import("std");
 
-/// A simple CRC32 checksum function using the JamCRC algorithm.
-/// This is the correct implementation of the CRC32 checksum for XIV.
+// This is the correct implementation of the CRC32 checksum for XIV.
+pub const Crc32 = std.hash.crc.Crc32Jamcrc;
+
+/// A simple CRC32 checksum function
 pub inline fn crc32(data: []const u8) u32 {
-    return std.hash.crc.Crc32Jamcrc.hash(data);
+    return Crc32.hash(data);
 }
 
 test "crc32" {
