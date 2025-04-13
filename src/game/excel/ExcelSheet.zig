@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const ExcelHeader = @import("ExcelHeader.zig");
-const ExcelData = @import("ExcelData.zig");
+const ExcelPage = @import("ExcelPage.zig");
 const ExcelRawRow = @import("ExcelRawRow.zig");
 
 const native_types = @import("native_types.zig");
@@ -24,7 +24,7 @@ pack: *Pack,
 sheet_name: []const u8,
 excel_header: *ExcelHeader,
 language: Language,
-datas: []?*ExcelData,
+pages: []?*ExcelPage,
 
 pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred_language: Language) !*ExcelSheet {
     const sheet = try allocator.create(ExcelSheet);
@@ -39,7 +39,7 @@ pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred
         .sheet_name = sheet_name_dupe,
         .excel_header = undefined,
         .language = undefined,
-        .datas = undefined,
+        .pages = undefined,
     };
 
     try sheet.loadExcelHeader();
@@ -47,14 +47,14 @@ pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred
 
     try sheet.determineLanguage(preferred_language);
 
-    try sheet.allocateDatas();
-    errdefer sheet.cleanupDatas();
+    try sheet.allocatepages();
+    errdefer sheet.cleanuppages();
 
     return sheet;
 }
 
 pub fn deinit(sheet: *ExcelSheet) void {
-    sheet.cleanupDatas();
+    sheet.cleanuppages();
     sheet.excel_header.deinit();
     sheet.allocator.free(sheet.sheet_name);
     sheet.allocator.destroy(sheet);
@@ -71,7 +71,21 @@ pub fn getRawRow(sheet: *ExcelSheet, row_id: u32) !ExcelRawRow {
     // TODO: Do we need an alloc version of this method?
 
     const page, const offset = try sheet.determineRowPageAndOffset(row_id);
-    const data, const row_count = try sliceFromDataAndOffset(page, offset);
+    return sheet.rawRowFromPageAndOffset(page, offset);
+}
+
+/// Gets an iterator for the raw rows in the sheet.
+/// The iterator will iterate over all the rows in the sheet.
+pub fn rawRowIterator(sheet: *ExcelSheet) RowIterator {
+    return .{
+        .sheet = sheet,
+        .page_index = 0,
+        .row_index = 0,
+    };
+}
+
+inline fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRawRow {
+    const data, const row_count = try sliceFromPageAndOffset(page, offset);
     const fixed_size = sheet.excel_header.header.data_offset;
 
     return .{
@@ -83,21 +97,21 @@ pub fn getRawRow(sheet: *ExcelSheet, row_id: u32) !ExcelRawRow {
     };
 }
 
-fn sliceFromDataAndOffset(data: *ExcelData, offset: ExcelDataOffset) !struct { []const u8, u16 } {
-    var fbs = std.io.fixedBufferStream(data.raw_sheet_data);
+fn sliceFromPageAndOffset(page: *ExcelPage, offset: ExcelDataOffset) !struct { []const u8, u16 } {
+    var fbs = std.io.fixedBufferStream(page.raw_sheet_data);
 
-    const true_offset = offset.offset - data.data_start;
+    const true_offset = offset.offset - page.data_start;
     fbs.pos = true_offset;
 
     const row_preamble = try fbs.reader().readStructEndian(ExcelDataRowPreamble, .big);
     const row_size = row_preamble.data_size;
 
-    const row_buffer = data.raw_sheet_data[fbs.pos..][0..row_size];
+    const row_buffer = page.raw_sheet_data[fbs.pos..][0..row_size];
 
     return .{ row_buffer, row_preamble.row_count };
 }
 
-fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelData, ExcelDataOffset } {
+fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelPage, ExcelDataOffset } {
     const page_index = try sheet.determineRowPage(row_id);
     const data = try sheet.getPageData(page_index);
 
@@ -126,18 +140,23 @@ fn determineRowPage(sheet: *ExcelSheet, row_id: u32) !usize {
     return error.RowNotFound;
 }
 
-fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelData {
-    if (sheet.datas[page_index] == null) {
+fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelPage {
+    if (page_index >= sheet.pages.len) {
+        @branchHint(.unlikely);
+        return error.InvalidPageIndex;
+    }
+
+    if (sheet.pages[page_index] == null) {
         @branchHint(.unlikely);
         const data = try sheet.loadPageData(sheet.excel_header.page_definitions[page_index].start_id);
-        sheet.datas[page_index] = data;
+        sheet.pages[page_index] = data;
         return data;
     }
 
-    return sheet.datas[page_index].?;
+    return sheet.pages[page_index].?;
 }
 
-fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelData {
+fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelPage {
     var sfb = std.heap.stackFallback(1024, sheet.allocator);
     const sfa = sfb.get();
 
@@ -147,30 +166,30 @@ fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelData {
         try std.fmt.allocPrint(sfa, "exd/{s}_{d}_{s}.exd", .{ sheet.sheet_name, start_row_id, sheet.language.toLanguageString() });
     defer sfa.free(sheet_path);
 
-    const data = try sheet.pack.getTypedFile(sheet.allocator, ExcelData, sheet_path);
+    const data = try sheet.pack.getTypedFile(sheet.allocator, ExcelPage, sheet_path);
     errdefer data.deinit();
 
     return data;
 }
 
-fn allocateDatas(sheet: *ExcelSheet) !void {
+fn allocatepages(sheet: *ExcelSheet) !void {
     const num_pages = sheet.excel_header.page_definitions.len;
-    sheet.datas = try sheet.allocator.alloc(?*ExcelData, num_pages);
-    errdefer sheet.allocator.free(sheet.datas);
+    sheet.pages = try sheet.allocator.alloc(?*ExcelPage, num_pages);
+    errdefer sheet.allocator.free(sheet.pages);
 
-    for (sheet.datas) |*data| {
+    for (sheet.pages) |*data| {
         data.* = null;
     }
 }
 
-fn cleanupDatas(sheet: *ExcelSheet) void {
-    for (sheet.datas) |*data| {
+fn cleanuppages(sheet: *ExcelSheet) void {
+    for (sheet.pages) |*data| {
         if (data.*) |d| {
             d.deinit();
         }
         data.* = null;
     }
-    sheet.allocator.free(sheet.datas);
+    sheet.allocator.free(sheet.pages);
 }
 
 fn loadExcelHeader(sheet: *ExcelSheet) !void {
@@ -210,3 +229,29 @@ fn determineLanguage(sheet: *ExcelSheet, preferred_language: Language) !void {
     // If no compatibile language is found, return an error
     return error.LanguageNotFound;
 }
+
+const RowIterator = struct {
+    sheet: *ExcelSheet,
+    page_index: usize,
+    row_index: usize,
+
+    pub fn next(self: *@This()) ?ExcelRawRow {
+        const data = self.sheet.getPageData(self.page_index) catch return null;
+
+        if (self.row_index >= data.indexes.len) {
+            @branchHint(.unlikely);
+            return null;
+        }
+
+        const row = self.sheet.rawRowFromPageAndOffset(data, data.indexes[self.row_index]) catch return null;
+
+        self.row_index += 1;
+
+        if (self.row_index >= data.indexes.len) {
+            self.page_index += 1;
+            self.row_index = 0;
+        }
+
+        return row;
+    }
+};

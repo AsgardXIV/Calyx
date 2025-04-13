@@ -73,6 +73,22 @@ test "excel" {
         try std.testing.expectEqualStrings(expected, val);
     }
 
+    // Iterate default
+    {
+        std.log.info("Testing iterate default", .{});
+
+        const sheet = try game_data.getSheet("BuddyAction");
+        var it = sheet.rawRowIterator();
+        var counter: u32 = 0;
+        while (it.next()) |row| {
+            const name = try row.getRowColumnValue([]const u8, 0);
+            _ = name;
+            counter += 1;
+        }
+
+        try std.testing.expectEqual(8, counter);
+    }
+
     // Basic sub row integer
     {
         std.log.info("Testing sub row integer", .{});
