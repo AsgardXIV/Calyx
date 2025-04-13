@@ -102,6 +102,17 @@ fn sliceFromDataAndOffset(data: *ExcelData, offset: ExcelDataOffset) !struct { [
 fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelData, ExcelDataOffset } {
     const page_index = try sheet.determineRowPage(row_id);
     const data = try sheet.getPageData(page_index);
+
+    // First we see if we can just index directly
+    const direct_index = row_id - sheet.excel_header.page_definitions[page_index].start_id;
+    if (direct_index < data.indexes.len) {
+        const idx = data.indexes[direct_index];
+        if (idx.row_id == row_id) {
+            return .{ data, idx };
+        }
+    }
+
+    // If not, we need to use the map
     const row_index_id = data.row_to_index.get(row_id) orelse return error.RowNotFound;
     const row_offset = data.indexes[row_index_id];
     return .{ data, row_offset };
@@ -119,6 +130,7 @@ fn determineRowPage(sheet: *ExcelSheet, row_id: u32) !usize {
 
 fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelData {
     if (sheet.datas[page_index] == null) {
+        @branchHint(.unlikely);
         const data = try sheet.loadPageData(sheet.excel_header.page_definitions[page_index].start_id);
         sheet.datas[page_index] = data;
         return data;
