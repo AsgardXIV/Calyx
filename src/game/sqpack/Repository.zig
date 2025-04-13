@@ -69,7 +69,6 @@ fn getCategoryById(repo: *Repository, id: CategoryId) !*Category {
     if (repo.categories[@intFromEnum(id)]) |cat| {
         return cat;
     } else {
-        @branchHint(.cold);
         return error.InvalidCategory;
     }
 }

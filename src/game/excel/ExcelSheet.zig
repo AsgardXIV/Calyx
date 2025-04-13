@@ -118,13 +118,13 @@ fn determineRowPage(sheet: *ExcelSheet, row_id: u32) !usize {
 }
 
 fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelData {
-    if (sheet.datas[page_index]) |data| {
+    if (sheet.datas[page_index] == null) {
+        const data = try sheet.loadPageData(sheet.excel_header.page_definitions[page_index].start_id);
+        sheet.datas[page_index] = data;
         return data;
     }
-    const data = try sheet.loadPageData(sheet.excel_header.page_definitions[page_index].start_id);
-    errdefer data.deinit();
-    sheet.datas[page_index] = data;
-    return data;
+
+    return sheet.datas[page_index].?;
 }
 
 fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelData {

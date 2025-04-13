@@ -92,7 +92,6 @@ pub fn discoverDefaultDefinitions(excel: *ExcelModule) !void {
 pub fn loadRootList(excel: *ExcelModule) !void {
     // Destroy the previous root list if it exists
     if (excel.root_sheet_list != null) {
-        @branchHint(.unlikely);
         return;
     }
 

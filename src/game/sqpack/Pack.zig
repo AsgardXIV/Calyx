@@ -102,7 +102,6 @@ pub fn loadRepos(pack: *Pack) !void {
     folder.close();
 
     if (max_seen < 0) {
-        @branchHint(.unlikely);
         return error.InvalidPackFolder;
     }
     max_seen += 1;
@@ -136,7 +135,6 @@ fn getRepoById(pack: *Pack, repo_id: RepositoryId) !*Repository {
     const index = repo_id.toIntId();
 
     if (index >= pack.repos.items.len) {
-        @branchHint(.cold);
         return error.InvalidRepositoryId;
     }
 
@@ -145,7 +143,6 @@ fn getRepoById(pack: *Pack, repo_id: RepositoryId) !*Repository {
 
 inline fn loadIfRequired(pack: *Pack) !void {
     if (!pack.repos_loaded) {
-        @branchHint(.unlikely);
         try pack.loadRepos();
         pack.repos_loaded = true;
     }

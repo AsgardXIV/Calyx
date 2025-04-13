@@ -26,12 +26,10 @@ column_definitions: []ExcelColumnDefinition,
 /// The returned data is valid until the sheet is deinitialized.
 pub fn getRowColumnValue(row: *const ExcelRawRow, comptime T: type, column_id: u16) !T {
     if (row.sheet_type != .default) {
-        @branchHint(.unlikely);
         return error.InvalidSheetType; // Likely need to use getSubRowColumnValue instead
     }
 
     if (column_id >= row.column_definitions.len) {
-        @branchHint(.unlikely);
         return error.InvalidColumnId;
     }
 
@@ -54,17 +52,14 @@ pub fn getRowColumnValue(row: *const ExcelRawRow, comptime T: type, column_id: u
 /// The returned data is valid until the sheet is deinitialized.
 pub fn getSubRowColumnValue(row: *const ExcelRawRow, comptime T: type, subrow_id: u16, column_id: u16) !T {
     if (row.sheet_type != .sub_rows) {
-        @branchHint(.unlikely);
         return error.InvalidSheetType; // Likely need to use getRowColumnValue instead
     }
 
     if (column_id >= row.column_definitions.len) {
-        @branchHint(.unlikely);
         return error.InvalidColumnId;
     }
 
     if (subrow_id >= row.row_count) {
-        @branchHint(.unlikely);
         return error.RowNotFound;
     }
 
@@ -76,7 +71,6 @@ pub fn getSubRowColumnValue(row: *const ExcelRawRow, comptime T: type, subrow_id
 
 fn unpackColumn(row: *const ExcelRawRow, comptime T: type, base_offset: usize, column_def: ExcelColumnDefinition) !T {
     if (meta.typeId(T) != column_def.column_type.typeId()) {
-        @branchHint(.unlikely);
         return error.ColumnTypeMismatch;
     }
 
@@ -95,7 +89,6 @@ fn unpackColumn(row: *const ExcelRawRow, comptime T: type, base_offset: usize, c
             const str_aligned = row.data[str_offset..];
             const str_len = std.mem.indexOfScalar(u8, str_aligned, 0);
             if (str_len == null) {
-                @branchHint(.cold);
                 return error.InvalidString;
             }
             const str = str_aligned[0..str_len.?];

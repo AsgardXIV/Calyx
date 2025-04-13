@@ -111,13 +111,10 @@ pub fn lookupFileInIndexes(chunk: *Chunk, path: ParsedGamePath) ?ResolvedGameFil
 
 fn getDataFileById(chunk: *Chunk, data_file_id: u8) !*DataFile {
     if (data_file_id >= chunk.data_files.len) {
-        @branchHint(.cold);
         return error.InvalidDataFileId;
     }
 
     if (chunk.data_files[data_file_id] == null) {
-        @branchHint(.unlikely);
-
         const data_file = try DataFile.init(
             chunk.allocator,
             chunk.platform,
