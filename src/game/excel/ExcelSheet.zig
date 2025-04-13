@@ -84,7 +84,7 @@ pub fn rawRowIterator(sheet: *ExcelSheet) RowIterator {
     };
 }
 
-inline fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRawRow {
+fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRawRow {
     const data, const row_count = try sliceFromPageAndOffset(page, offset);
     const fixed_size = sheet.excel_header.header.data_offset;
 
