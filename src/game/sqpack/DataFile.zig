@@ -18,6 +18,8 @@ const ModelFileInfo = native_types.ModelFileInfo;
 
 const BufferedFileReader = @import("../../core/io/BufferedFileReader.zig");
 
+const native_endian = @import("builtin").cpu.arch.endian();
+
 const WriteStream = std.io.FixedBufferStream([]u8);
 
 const DataFile = @This();
@@ -257,27 +259,27 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
     // Write the first 0x44 bytes
     write_stream.pos = 0;
     const writer = write_stream.writer();
-    try writer.writeInt(u32, model_file_info.version, .little);
-    try writer.writeInt(u32, stack_size, .little);
-    try writer.writeInt(u32, runtime_size, .little);
-    try writer.writeInt(u16, model_file_info.vertex_declaration_num, .little);
-    try writer.writeInt(u16, model_file_info.material_num, .little);
+    try writer.writeInt(u32, model_file_info.version, native_endian);
+    try writer.writeInt(u32, stack_size, native_endian);
+    try writer.writeInt(u32, runtime_size, native_endian);
+    try writer.writeInt(u16, model_file_info.vertex_declaration_num, native_endian);
+    try writer.writeInt(u16, model_file_info.material_num, native_endian);
     for (vertex_data_offsets) |offset| {
-        try writer.writeInt(u32, offset, .little);
+        try writer.writeInt(u32, offset, native_endian);
     }
     for (index_data_offsets) |offset| {
-        try writer.writeInt(u32, offset, .little);
+        try writer.writeInt(u32, offset, native_endian);
     }
     for (vertex_data_sizes) |size| {
-        try writer.writeInt(u32, size, .little);
+        try writer.writeInt(u32, size, native_endian);
     }
     for (index_data_sizes) |size| {
-        try writer.writeInt(u32, size, .little);
+        try writer.writeInt(u32, size, native_endian);
     }
-    try writer.writeInt(u8, model_file_info.num_lods, .little);
-    try writer.writeInt(u8, if (model_file_info.index_buffer_streaming_enabled) 1 else 0, .little);
-    try writer.writeInt(u8, if (model_file_info.edge_geometry_enabled) 1 else 0, .little);
-    try writer.writeInt(u8, 0, .little);
+    try writer.writeInt(u8, model_file_info.num_lods, native_endian);
+    try writer.writeInt(u8, if (model_file_info.index_buffer_streaming_enabled) 1 else 0, native_endian);
+    try writer.writeInt(u8, if (model_file_info.edge_geometry_enabled) 1 else 0, native_endian);
+    try writer.writeInt(u8, 0, native_endian);
 }
 
 fn readModelBlocks(data_file: *DataFile, offset: u64, size: usize, start_block: u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !struct { size: u64, next_block: u32 } {

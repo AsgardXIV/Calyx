@@ -22,6 +22,12 @@ pub const Platform = enum(u8) {
             else => std.enums.tagName(Self, self).?,
         };
     }
+
+    pub fn validateCalyxSupport(self: Self) !void {
+        if (self == .ps3) {
+            return error.PlatformNotSupported;
+        }
+    }
 };
 
 test "basic fromPlatformString" {

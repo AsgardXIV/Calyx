@@ -45,6 +45,8 @@ excel: *ExcelModule,
 /// Returns a pointer to the initialized `GameData` instance.
 /// The caller is responsible for freeing the instance using `deinit`.
 pub fn init(allocator: Allocator, options: Options) !*GameData {
+    try options.platform.validateCalyxSupport();
+
     const data = try allocator.create(GameData);
     errdefer allocator.destroy(data);
 
