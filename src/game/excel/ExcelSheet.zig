@@ -87,14 +87,12 @@ fn sliceFromDataAndOffset(data: *ExcelData, offset: ExcelDataOffset) !struct { [
     var fbs = std.io.fixedBufferStream(data.raw_sheet_data);
 
     const true_offset = offset.offset - data.data_start;
-    try fbs.seekTo(true_offset);
+    fbs.pos = true_offset;
 
     const row_preamble = try fbs.reader().readStructEndian(ExcelDataRowPreamble, .big);
     const row_size = row_preamble.data_size;
 
-    const first_data = try fbs.getPos();
-
-    const row_buffer = data.raw_sheet_data[first_data .. first_data + row_size];
+    const row_buffer = data.raw_sheet_data[fbs.pos..][0..row_size];
 
     return .{ row_buffer, row_preamble.row_count };
 }
