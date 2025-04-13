@@ -193,14 +193,14 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
     _ = try data_file.bfr.reader().readAll(compressed_block_slice);
 
     // Setup some temp data
-    var vertex_data_offsets: [ModelFileInfo.LodLevels]u32 = undefined;
-    var vertex_data_sizes: [ModelFileInfo.LodLevels]u32 = undefined;
+    var vertex_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
+    var vertex_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
 
-    var edge_data_offsets: [ModelFileInfo.LodLevels]u32 = undefined;
-    var edge_data_sizes: [ModelFileInfo.LodLevels]u32 = undefined;
+    var edge_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
+    var edge_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
 
-    var index_data_offsets: [ModelFileInfo.LodLevels]u32 = undefined;
-    var index_data_sizes: [ModelFileInfo.LodLevels]u32 = undefined;
+    var index_data_offsets: [ModelFileInfo.lod_levels]u32 = undefined;
+    var index_data_sizes: [ModelFileInfo.lod_levels]u32 = undefined;
 
     // Start writing at 0x44 and we'll fill in the header later
     write_stream.pos = 0x44;
@@ -217,7 +217,7 @@ fn readModelFile(data_file: *DataFile, base_offset: u64, file_info: FileInfo, wr
     current_block = runtime_result.next_block;
     const runtime_size: u32 = @intCast(runtime_result.size);
 
-    for (0..ModelFileInfo.LodLevels) |lod| {
+    for (0..ModelFileInfo.lod_levels) |lod| {
         const vertex_offset = base_offset + file_info.header_size + model_file_info.offset.vertex_buffer_size[lod];
         current_block = try data_file.processModelData(
             lod,
@@ -297,7 +297,7 @@ fn readModelBlocks(data_file: *DataFile, offset: u64, size: usize, start_block: 
     return .{ .size = stack_size, .next_block = current_block };
 }
 
-fn processModelData(data_file: *DataFile, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[ModelFileInfo.LodLevels]u32, data_sizes: *[ModelFileInfo.LodLevels]u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !u32 {
+fn processModelData(data_file: *DataFile, lod: usize, offset: u64, size: usize, start_block: u32, offsets: *[ModelFileInfo.lod_levels]u32, data_sizes: *[ModelFileInfo.lod_levels]u32, compressed_block_sizes: []u16, write_stream: *WriteStream) !u32 {
     var current_block = start_block;
     offsets[lod] = 0;
     data_sizes[lod] = 0;

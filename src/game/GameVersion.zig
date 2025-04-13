@@ -1,11 +1,11 @@
 const std = @import("std");
 const GameVersion = @This();
 
-pub const GameVersionFileExtension = "ver";
-pub const UnknownVersion = unknownVersion();
-const VersionStrLen = 20;
+pub const version_file_extension = "ver";
+pub const unknown_version = unknownVersion();
+const version_str_len = 20;
 
-str: [VersionStrLen]u8,
+str: [version_str_len]u8,
 year: u16,
 month: u16,
 day: u16,
@@ -17,11 +17,11 @@ pub fn parseFromString(version_str: []const u8) !GameVersion {
     var self: GameVersion = undefined;
 
     // Handle string first
-    if (version_str.len != VersionStrLen) {
+    if (version_str.len != version_str_len) {
         return error.InvalidVersionString;
     }
 
-    @memcpy(self.str[0..VersionStrLen], version_str);
+    @memcpy(self.str[0..version_str_len], version_str);
 
     // Break it down into parts
     var parts = std.mem.splitScalar(u8, version_str, '.');
@@ -42,7 +42,7 @@ pub fn parseFromString(version_str: []const u8) !GameVersion {
 }
 
 pub fn parseFromFile(file: *const std.fs.File) !GameVersion {
-    var version_str: [VersionStrLen]u8 = undefined;
+    var version_str: [version_str_len]u8 = undefined;
     _ = try file.readAll(&version_str);
     return try GameVersion.parseFromString(&version_str);
 }

@@ -11,7 +11,7 @@ const ParsedGamePath = @import("ParsedGamePath.zig");
 
 const core = @import("../../core.zig");
 
-const MaxCategoryId = core.meta.maxEnumValue(CategoryId);
+const max_category_id = core.meta.maxEnumValue(CategoryId);
 
 const Repository = @This();
 
@@ -20,7 +20,7 @@ platform: Platform,
 repo_version: GameVersion,
 repo_id: RepositoryId,
 repo_path: []const u8,
-categories: [MaxCategoryId + 1]?*Category,
+categories: [max_category_id + 1]?*Category,
 
 pub fn init(
     allocator: Allocator,
@@ -42,7 +42,7 @@ pub fn init(
         .repo_version = default_version,
         .repo_id = repo_id,
         .repo_path = cloned_repo_path,
-        .categories = [_]?*Category{null} ** (MaxCategoryId + 1),
+        .categories = [_]?*Category{null} ** (max_category_id + 1),
     };
 
     // Setup the version
@@ -79,7 +79,7 @@ fn setupCategories(repo: *Repository) !void {
 
     errdefer cleanupCategories(repo); // If we error at all, we need to cleanup
 
-    cat_loop: for (0..MaxCategoryId + 1) |i| {
+    cat_loop: for (0..max_category_id + 1) |i| {
         // Some values are not valid category ids so we need to skip them
         // Because it's only a few values using a fixed size array is still better than a hash lookup
         const cat_id = std.meta.intToEnum(CategoryId, i) catch continue;
@@ -137,7 +137,7 @@ fn setupVersion(repo: *Repository) !void {
     const repo_name = try repo.repo_id.toRepositoryString(sfa);
     defer sfa.free(repo_name);
 
-    const version_file_name = try std.fmt.allocPrint(sfa, "{s}.{s}", .{ repo_name, GameVersion.GameVersionFileExtension });
+    const version_file_name = try std.fmt.allocPrint(sfa, "{s}.{s}", .{ repo_name, GameVersion.version_file_extension });
     defer sfa.free(version_file_name);
 
     const version_file_path = try std.fs.path.join(sfa, &.{ repo.repo_path, version_file_name });

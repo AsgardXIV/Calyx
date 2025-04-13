@@ -9,9 +9,9 @@ const Pack = game.sqpack.Pack;
 const ExcelModule = game.excel.ExcelModule;
 const ExcelSheet = game.excel.ExcelSheet;
 
-const VersionFile = "ffxivgame.ver";
-const SqPackRepoPath = "sqpack";
-const GameEnvVar = "FFXIV_GAME_PATH";
+const version_file = "ffxivgame.ver";
+const sqpack_repo_dirname = "sqpack";
+const game_env_var = "FFXIV_GAME_PATH";
 
 const GameData = @This();
 
@@ -55,7 +55,7 @@ pub fn init(allocator: Allocator, options: Options) !*GameData {
         if (options.path) |path| {
             break :blk try allocator.dupe(u8, path);
         } else {
-            break :blk try std.process.getEnvVarOwned(allocator, GameEnvVar);
+            break :blk try std.process.getEnvVarOwned(allocator, game_env_var);
         }
     };
     errdefer allocator.free(cloned_game_path);
@@ -65,12 +65,12 @@ pub fn init(allocator: Allocator, options: Options) !*GameData {
     const sfa = sfb.get();
 
     // Load the game version
-    const game_version_file_path = try std.fs.path.join(sfa, &.{ cloned_game_path, VersionFile });
+    const game_version_file_path = try std.fs.path.join(sfa, &.{ cloned_game_path, version_file });
     defer sfa.free(game_version_file_path);
-    const game_version = GameVersion.parseFromFilePath(game_version_file_path) catch GameVersion.UnknownVersion;
+    const game_version = GameVersion.parseFromFilePath(game_version_file_path) catch GameVersion.unknown_version;
 
     // Setup the sqpack
-    const sqpack_repo_path = try std.fs.path.join(sfa, &.{ cloned_game_path, SqPackRepoPath });
+    const sqpack_repo_path = try std.fs.path.join(sfa, &.{ cloned_game_path, sqpack_repo_dirname });
     defer sfa.free(sqpack_repo_path);
     try std.fs.accessAbsolute(sqpack_repo_path, .{}); // Sanity check
 

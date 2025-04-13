@@ -3,10 +3,10 @@ const Allocator = std.mem.Allocator;
 
 const ExcelList = @This();
 
-const Magic = "EXLT";
-const LineDelimiter = "\r\n";
-
 const FixedBufferStream = std.io.FixedBufferStream([]const u8);
+
+const expected_magic = "EXLT";
+const line_delimiter = "\r\n";
 
 allocator: Allocator,
 version: u32,
@@ -64,7 +64,7 @@ fn populate(list: *ExcelList, fbs: *FixedBufferStream) !void {
         const version_str = header_parts.next() orelse return error.InvalidHeader;
 
         // Validate
-        if (!std.mem.eql(u8, magic_str, Magic)) return error.InvalidMagic;
+        if (!std.mem.eql(u8, magic_str, expected_magic)) return error.InvalidMagic;
         list.version = try std.fmt.parseInt(u32, version_str, 10);
     }
     sfa.free(raw_header);

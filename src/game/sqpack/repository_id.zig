@@ -4,15 +4,15 @@ const Allocator = std.mem.Allocator;
 pub const RepositoryId = union(enum) {
     pub const Base: RepositoryId = .base;
 
-    const BaseRepoId: u8 = 0;
-    const BaseRepoName = "ffxiv";
-    const ExPackRepoPrefix = "ex";
+    const base_repo_id: u8 = 0;
+    const base_repo_name = "ffxiv";
+    const expansion_repo_prefix = "ex";
 
     base,
     expansion: u8,
 
     pub fn fromIntId(id: u8) RepositoryId {
-        if (id == BaseRepoId) {
+        if (id == base_repo_id) {
             return RepositoryId.Base;
         } else {
             return .{ .expansion = id };
@@ -21,26 +21,26 @@ pub const RepositoryId = union(enum) {
 
     pub fn toIntId(self: RepositoryId) u8 {
         return switch (self) {
-            .base => BaseRepoId,
+            .base => base_repo_id,
             .expansion => |expansion| expansion,
         };
     }
 
     pub fn toRepositoryString(self: RepositoryId, allocator: Allocator) ![]const u8 {
         return switch (self) {
-            .base => try std.fmt.allocPrint(allocator, "{s}", .{BaseRepoName}),
-            .expansion => |expansion| try std.fmt.allocPrint(allocator, "{s}{d}", .{ ExPackRepoPrefix, expansion }),
+            .base => try std.fmt.allocPrint(allocator, "{s}", .{base_repo_name}),
+            .expansion => |expansion| try std.fmt.allocPrint(allocator, "{s}{d}", .{ expansion_repo_prefix, expansion }),
         };
     }
 
     pub fn fromRepositoryString(repo_name: []const u8, fallback: bool) !RepositoryId {
         // Explicitly base repo
-        if (std.mem.eql(u8, repo_name, BaseRepoName)) {
+        if (std.mem.eql(u8, repo_name, base_repo_name)) {
             return RepositoryId.Base;
         }
 
         // Expansion pack repo
-        if (std.mem.startsWith(u8, repo_name, ExPackRepoPrefix)) {
+        if (std.mem.startsWith(u8, repo_name, expansion_repo_prefix)) {
             // Parse could fail if it's just a file which begins with "ex"
             const expack_id = std.fmt.parseInt(u8, repo_name[2..], 10) catch null;
             if (expack_id) |ex| {

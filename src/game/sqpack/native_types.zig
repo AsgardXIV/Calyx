@@ -4,7 +4,7 @@ const Platform = @import("../platform.zig").Platform;
 
 pub const SqPackHeader = extern struct {
     const Self = @This();
-    const Magic = "SqPack\x00\x00";
+    const expected_magic = "SqPack\x00\x00";
 
     magic: [8]u8 align(1),
     platform: Platform align(1),
@@ -14,7 +14,7 @@ pub const SqPackHeader = extern struct {
     pack_type: u32 align(1),
 
     pub fn validateMagic(self: *const Self) !void {
-        if (std.mem.eql(u8, &self.magic, Magic)) {
+        if (std.mem.eql(u8, &self.magic, expected_magic)) {
             return;
         } else {
             return error.InvalidMagic;
@@ -106,17 +106,17 @@ pub const StandardFileInfo = extern struct {
 pub const TextureFileInfo = StandardFileInfo;
 
 pub const ModelFileInfo = extern struct {
-    pub const LodLevels = 3;
+    pub const lod_levels = 3;
 
     num_of_blocks: u32 align(1),
     used_num_of_blocks: u32 align(1),
     version: u32 align(1),
 
-    uncompressed_size: ModelFileMemorySizes(u32, LodLevels) align(1),
-    compressed_size: ModelFileMemorySizes(u32, LodLevels) align(1),
-    offset: ModelFileMemorySizes(u32, LodLevels) align(1),
-    index: ModelFileMemorySizes(u16, LodLevels) align(1),
-    num: ModelFileMemorySizes(u16, LodLevels) align(1),
+    uncompressed_size: ModelFileMemorySizes(u32, lod_levels) align(1),
+    compressed_size: ModelFileMemorySizes(u32, lod_levels) align(1),
+    offset: ModelFileMemorySizes(u32, lod_levels) align(1),
+    index: ModelFileMemorySizes(u16, lod_levels) align(1),
+    num: ModelFileMemorySizes(u16, lod_levels) align(1),
 
     vertex_declaration_num: u16 align(1),
     material_num: u16,

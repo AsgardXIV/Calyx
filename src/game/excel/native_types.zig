@@ -8,7 +8,7 @@ pub const ExcelSheetType = enum(u8) {
 };
 
 pub const ExcelHeaderHeader = extern struct {
-    const Magic = "EXHF";
+    const expected_magic = "EXHF";
 
     magic: [4]u8 align(1),
     version: u16 align(1),
@@ -28,7 +28,7 @@ pub const ExcelHeaderHeader = extern struct {
     _padding2: [8]u8 align(1),
 
     pub fn validateMagic(self: *ExcelHeaderHeader) !void {
-        if (!std.mem.eql(u8, Magic, &self.magic)) {
+        if (!std.mem.eql(u8, expected_magic, &self.magic)) {
             return error.InvalidMagic;
         }
     }
@@ -104,7 +104,7 @@ pub const ExcelPageDefinition = extern struct {
 };
 
 pub const ExcelDataHeader = extern struct {
-    const Magic = "EXDF";
+    const expected_magic = "EXDF";
 
     magic: [4]u8 align(1),
     version: u16 align(1),
@@ -113,7 +113,7 @@ pub const ExcelDataHeader = extern struct {
     _padding1: [20]u8 align(1),
 
     pub fn validateMagic(self: *ExcelDataHeader) !void {
-        if (!std.mem.eql(u8, Magic, &self.magic)) {
+        if (!std.mem.eql(u8, expected_magic, &self.magic)) {
             return error.InvalidMagic;
         }
     }
