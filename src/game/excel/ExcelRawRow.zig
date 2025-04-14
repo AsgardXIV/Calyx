@@ -69,11 +69,12 @@ pub fn getSubRowColumnValue(row: *const ExcelRawRow, subrow_id: u16, column_id: 
 
 fn unpackColumn(row: *const ExcelRawRow, base_offset: usize, column_def: ExcelColumnDefinition) !ExcelRawColumnValue {
     var buffer = std.io.fixedBufferStream(row.data);
-    try buffer.seekTo(base_offset + column_def.offset);
+    const reader = buffer.reader();
+    buffer.pos = base_offset + column_def.offset;
 
     return switch (column_def.column_type) {
         .string => blk: {
-            const str_offset = base_offset + row.sheet.excel_header.header.data_offset + try buffer.reader().readInt(u32, .big);
+            const str_offset = base_offset + row.sheet.excel_header.header.data_offset + try reader.readInt(u32, .big);
             const str_aligned = row.data[str_offset..];
             const str_len = std.mem.indexOfScalar(u8, str_aligned, 0);
             if (str_len == null) {
@@ -84,19 +85,19 @@ fn unpackColumn(row: *const ExcelRawRow, base_offset: usize, column_def: ExcelCo
                 .string = str,
             };
         },
-        .bool => .{ .bool = try buffer.reader().readByte() != 0 },
+        .bool => .{ .bool = try reader.readByte() != 0 },
 
-        .i8 => .{ .i8 = try buffer.reader().readInt(i8, .big) },
-        .u8 => .{ .u8 = try buffer.reader().readInt(u8, .big) },
-        .i16 => .{ .i16 = try buffer.reader().readInt(i16, .big) },
-        .u16 => .{ .u16 = try buffer.reader().readInt(u16, .big) },
-        .i32 => .{ .i32 = try buffer.reader().readInt(i32, .big) },
-        .u32 => .{ .u32 = try buffer.reader().readInt(u32, .big) },
+        .i8 => .{ .i8 = try reader.readInt(i8, .big) },
+        .u8 => .{ .u8 = try reader.readInt(u8, .big) },
+        .i16 => .{ .i16 = try reader.readInt(i16, .big) },
+        .u16 => .{ .u16 = try reader.readInt(u16, .big) },
+        .i32 => .{ .i32 = try reader.readInt(i32, .big) },
+        .u32 => .{ .u32 = try reader.readInt(u32, .big) },
 
-        .f32 => .{ .f32 = @bitCast(try buffer.reader().readInt(u32, .big)) },
+        .f32 => .{ .f32 = @bitCast(try reader.readInt(u32, .big)) },
 
-        .i64 => .{ .i64 = try buffer.reader().readInt(i64, .big) },
-        .u64 => .{ .u64 = try buffer.reader().readInt(u64, .big) },
+        .i64 => .{ .i64 = try reader.readInt(i64, .big) },
+        .u64 => .{ .u64 = try reader.readInt(u64, .big) },
 
         .packed_bool0,
         .packed_bool1,
@@ -106,6 +107,6 @@ fn unpackColumn(row: *const ExcelRawRow, base_offset: usize, column_def: ExcelCo
         .packed_bool5,
         .packed_bool6,
         .packed_bool7,
-        => .{ .bool = try buffer.reader().readByte() & try column_def.column_type.packedBoolMask() != 0 },
+        => .{ .bool = try reader.readByte() & try column_def.column_type.packedBoolMask() != 0 },
     };
 }

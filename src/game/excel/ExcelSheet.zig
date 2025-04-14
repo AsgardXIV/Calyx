@@ -91,9 +91,8 @@ fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDa
     fbs.pos = true_offset;
 
     const row_preamble = try fbs.reader().readStructEndian(ExcelDataRowPreamble, .big);
-    const row_size = row_preamble.data_size;
 
-    const row_buffer = page.raw_sheet_data[fbs.pos..][0..row_size];
+    const row_buffer = page.raw_sheet_data[fbs.pos..][0..row_preamble.data_size];
 
     return .{
         .sheet = sheet,
@@ -118,6 +117,7 @@ fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelPa
     // If not, we need to use the map
     const row_index_id = data.row_to_index.get(row_id) orelse return error.RowNotFound;
     const row_offset = data.indexes[row_index_id];
+
     return .{ data, row_offset };
 }
 
@@ -151,10 +151,13 @@ fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelPage {
     var sfb = std.heap.stackFallback(1024, sheet.allocator);
     const sfa = sfb.get();
 
-    const sheet_path = if (sheet.language == Language.none)
-        try std.fmt.allocPrint(sfa, "exd/{s}_{d}.exd", .{ sheet.sheet_name, start_row_id })
-    else
-        try std.fmt.allocPrint(sfa, "exd/{s}_{d}_{s}.exd", .{ sheet.sheet_name, start_row_id, sheet.language.toLanguageString() });
+    const sheet_path = blk: {
+        if (sheet.language == Language.none) {
+            break :blk try std.fmt.allocPrint(sfa, "exd/{s}_{d}.exd", .{ sheet.sheet_name, start_row_id });
+        } else {
+            break :blk try std.fmt.allocPrint(sfa, "exd/{s}_{d}_{s}.exd", .{ sheet.sheet_name, start_row_id, sheet.language.toLanguageString() });
+        }
+    };
     defer sfa.free(sheet_path);
 
     const data = try sheet.pack.getTypedFile(sheet.allocator, ExcelPage, sheet_path);
