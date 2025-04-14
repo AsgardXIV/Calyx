@@ -9,6 +9,7 @@ const ExcelModule = @import("ExcelModule.zig");
 const native_types = @import("native_types.zig");
 const ExcelDataOffset = native_types.ExcelDataOffset;
 const ExcelDataRowPreamble = native_types.ExcelDataRowPreamble;
+const ExcelPageDefinition = native_types.ExcelPageDefinition;
 
 const Pack = @import("../sqpack/Pack.zig");
 const Language = @import("../language.zig").Language;
@@ -124,13 +125,17 @@ fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelPa
 }
 
 fn determineRowPage(sheet: *ExcelSheet, row_id: u32) !usize {
-    for (sheet.excel_header.page_definitions, 0..) |page, i| {
-        const page_end = page.start_id + page.row_count;
-        if (row_id >= page.start_id and row_id < page_end) {
-            return i;
+    const S = struct {
+        fn pageFind(inner_row_id: u32, page: ExcelPageDefinition) std.math.Order {
+            if (inner_row_id < page.start_id) return .lt;
+            if (inner_row_id >= page.start_id + page.row_count) return .gt;
+            return .eq;
         }
-    }
-    return error.RowNotFound;
+    };
+
+    const index = std.sort.binarySearch(ExcelPageDefinition, sheet.excel_header.page_definitions, row_id, S.pageFind);
+
+    return index orelse error.RowNotFound;
 }
 
 fn getPageData(sheet: *ExcelSheet, page_index: usize) !*ExcelPage {
