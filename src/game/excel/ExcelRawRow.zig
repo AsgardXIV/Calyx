@@ -23,7 +23,7 @@ data: []const u8,
 /// No heap allocations are performed in this function.
 /// The returned data is valid until the sheet is deinitialized.
 pub fn getRowColumnValue(row: *const ExcelRawRow, column_id: u16) !ExcelRawColumnValue {
-    if (row.sheet.excel_header.header.sheet_type == .sub_rows) {
+    if (row.sheet.excel_header.header.sheet_type != .default) {
         return error.InvalidSheetType; // Likely need to use getSubRowColumnValue instead
     }
 
@@ -49,7 +49,7 @@ pub fn getRowColumnValue(row: *const ExcelRawRow, column_id: u16) !ExcelRawColum
 /// No heap allocations are performed in this function.
 /// The returned data is valid until the sheet is deinitialized.
 pub fn getSubRowColumnValue(row: *const ExcelRawRow, subrow_id: u16, column_id: u16) !ExcelRawColumnValue {
-    if (row.sheet.excel_header.header.sheet_type == .sub_rows) {
+    if (row.sheet.excel_header.header.sheet_type != .sub_rows) {
         return error.InvalidSheetType; // Likely need to use getSubRowColumnValue instead
     }
 

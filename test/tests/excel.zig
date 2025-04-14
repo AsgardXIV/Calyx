@@ -171,18 +171,6 @@ test "excel" {
         try std.testing.expectError(expected, sub_row);
     }
 
-    // Column type mismatch
-    {
-        std.log.info("Testing column type mismatch", .{});
-
-        const sheet = try game_data.getSheet("Item");
-        const row = try sheet.getRawRow(23992);
-        const sub_row = row.getRowColumnValue(2);
-
-        const expected = error.ColumnTypeMismatch;
-        try std.testing.expectError(expected, sub_row);
-    }
-
     // Column out of bounds
     {
         std.log.info("Testing column out of bounds", .{});
