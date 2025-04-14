@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const native_types = @import("native_types.zig");
-const ExcelDataRowPreamble = native_types.ExcelDataRowPreamble;
 const ExcelColumnDefinition = native_types.ExcelColumnDefinition;
 const ExcelSheet = @import("ExcelSheet.zig");
 const ExcelRawColumnValue = @import("excel_raw_column_value.zig").ExcelRawColumnValue;
@@ -9,7 +8,8 @@ const ExcelRawColumnValue = @import("excel_raw_column_value.zig").ExcelRawColumn
 const ExcelRawRow = @This();
 
 sheet: *ExcelSheet,
-preamble: ExcelDataRowPreamble,
+row_id: u32,
+sub_row_count: u16,
 data: []const u8,
 
 /// Gets the value of a column in the row.
@@ -57,7 +57,7 @@ pub fn getSubRowColumnValue(row: *const ExcelRawRow, subrow_id: u16, column_id: 
         return error.InvalidColumnId;
     }
 
-    if (subrow_id >= row.preamble.row_count) {
+    if (subrow_id >= row.sub_row_count) {
         return error.RowNotFound;
     }
 

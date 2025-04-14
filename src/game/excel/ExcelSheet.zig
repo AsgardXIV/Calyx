@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const ExcelHeader = @import("ExcelHeader.zig");
 const ExcelPage = @import("ExcelPage.zig");
 const ExcelRawRow = @import("ExcelRawRow.zig");
+const ExcelModule = @import("ExcelModule.zig");
 
 const native_types = @import("native_types.zig");
 const ExcelDataOffset = native_types.ExcelDataOffset;
@@ -20,13 +21,13 @@ const RawRowData = struct {
 };
 
 allocator: Allocator,
-pack: *Pack,
+module: *ExcelModule,
 sheet_name: []const u8,
 excel_header: *ExcelHeader,
 language: Language,
 pages: []?*ExcelPage,
 
-pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred_language: Language) !*ExcelSheet {
+pub fn init(allocator: Allocator, module: *ExcelModule, sheet_name: []const u8, preferred_language: Language) !*ExcelSheet {
     const sheet = try allocator.create(ExcelSheet);
     errdefer allocator.destroy(sheet);
 
@@ -35,7 +36,7 @@ pub fn init(allocator: Allocator, pack: *Pack, sheet_name: []const u8, preferred
 
     sheet.* = .{
         .allocator = allocator,
-        .pack = pack,
+        .module = module,
         .sheet_name = sheet_name_dupe,
         .excel_header = undefined,
         .language = undefined,
@@ -96,7 +97,8 @@ fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDa
 
     return .{
         .sheet = sheet,
-        .preamble = row_preamble,
+        .row_id = offset.row_id,
+        .sub_row_count = row_preamble.row_count,
         .data = row_buffer,
     };
 }
@@ -160,7 +162,7 @@ fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelPage {
     };
     defer sfa.free(sheet_path);
 
-    const data = try sheet.pack.getTypedFile(sheet.allocator, ExcelPage, sheet_path);
+    const data = try sheet.module.pack.getTypedFile(sheet.allocator, ExcelPage, sheet_path);
     errdefer data.deinit();
 
     return data;
@@ -193,7 +195,7 @@ fn loadExcelHeader(sheet: *ExcelSheet) !void {
     const sheet_path = try std.fmt.allocPrint(sfa, "exd/{s}.exh", .{sheet.sheet_name});
     defer sfa.free(sheet_path);
 
-    const excel_header = try sheet.pack.getTypedFile(sheet.allocator, ExcelHeader, sheet_path);
+    const excel_header = try sheet.module.pack.getTypedFile(sheet.allocator, ExcelHeader, sheet_path);
     errdefer excel_header.deinit();
 
     sheet.excel_header = excel_header;

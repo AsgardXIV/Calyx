@@ -66,7 +66,7 @@ pub fn getSheet(excel: *ExcelModule, sheet_name: []const u8) !*ExcelSheet {
     errdefer excel.allocator.free(global_name_lower);
 
     // Create a new sheet container, we pass the cased version for the name here
-    const sheet = try ExcelSheet.init(excel.allocator, excel.pack, sheet_name, excel.preferred_language);
+    const sheet = try ExcelSheet.init(excel.allocator, excel, sheet_name, excel.preferred_language);
     errdefer sheet.deinit();
 
     // Store the sheet container in the map
