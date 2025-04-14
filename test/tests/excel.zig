@@ -30,10 +30,10 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const val = try row.getRowColumnValue(u16, 30);
+        const val = try row.getRowColumnValue(30);
 
         const expected = 1671;
-        try std.testing.expectEqual(expected, val);
+        try std.testing.expectEqual(expected, val.u16);
     }
 
     // Basic default row float
@@ -42,10 +42,10 @@ test "excel" {
 
         const sheet = try game_data.getSheet("ModelChara");
         const row = try sheet.getRawRow(11);
-        const val = try row.getRowColumnValue(f32, 20);
+        const val = try row.getRowColumnValue(20);
 
         const expected = 4.3654;
-        try std.testing.expectApproxEqAbs(expected, val, 0.00001);
+        try std.testing.expectApproxEqAbs(expected, val.f32, 0.00001);
     }
 
     // Basic default row packed bool
@@ -54,11 +54,11 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const should_be_true = try row.getRowColumnValue(bool, 23);
-        const should_be_false = try row.getRowColumnValue(bool, 24);
+        const should_be_true = try row.getRowColumnValue(23);
+        const should_be_false = try row.getRowColumnValue(24);
 
-        try std.testing.expectEqual(true, should_be_true);
-        try std.testing.expectEqual(false, should_be_false);
+        try std.testing.expectEqual(true, should_be_true.bool);
+        try std.testing.expectEqual(false, should_be_false.bool);
     }
 
     // Basic default row string
@@ -67,10 +67,10 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const val = try row.getRowColumnValue([]const u8, 9);
+        const val = try row.getRowColumnValue(9);
 
         const expected = "Wind-up G'raha Tia";
-        try std.testing.expectEqualStrings(expected, val);
+        try std.testing.expectEqualStrings(expected, val.string);
     }
 
     // Iterate default
@@ -81,7 +81,7 @@ test "excel" {
         var it = sheet.rawRowIterator();
         var counter: u32 = 0;
         while (it.next()) |row| {
-            const name = try row.getRowColumnValue([]const u8, 0);
+            const name = try row.getRowColumnValue(0);
             _ = name;
             counter += 1;
         }
@@ -95,10 +95,10 @@ test "excel" {
 
         const sheet = try game_data.getSheet("QuestDefineClient");
         const row = try sheet.getRawRow(70198);
-        const val = try row.getSubRowColumnValue(u32, 8, 1);
+        const val = try row.getSubRowColumnValue(8, 1);
 
         const expected = 9623609;
-        try std.testing.expectEqual(expected, val);
+        try std.testing.expectEqual(expected, val.u32);
     }
 
     // Basic sub row string
@@ -107,10 +107,10 @@ test "excel" {
 
         const sheet = try game_data.getSheet("QuestDefineClient");
         const row = try sheet.getRawRow(70198);
-        const val = try row.getSubRowColumnValue([]const u8, 8, 0);
+        const val = try row.getSubRowColumnValue(8, 0);
 
         const expected = "AGI";
-        try std.testing.expectEqualStrings(expected, val);
+        try std.testing.expectEqualStrings(expected, val.string);
     }
 
     // Default row not found
@@ -141,7 +141,7 @@ test "excel" {
 
         const sheet = try game_data.getSheet("QuestDefineClient");
         const row = try sheet.getRawRow(70198);
-        const sub_row = row.getSubRowColumnValue(u32, 100, 1);
+        const sub_row = row.getSubRowColumnValue(100, 1);
 
         const expected = error.RowNotFound;
         try std.testing.expectError(expected, sub_row);
@@ -153,7 +153,7 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const sub_row = row.getSubRowColumnValue(u32, 0, 0);
+        const sub_row = row.getSubRowColumnValue(0, 0);
 
         const expected = error.InvalidSheetType;
         try std.testing.expectError(expected, sub_row);
@@ -165,7 +165,7 @@ test "excel" {
 
         const sheet = try game_data.getSheet("QuestDefineClient");
         const row = try sheet.getRawRow(70198);
-        const sub_row = row.getRowColumnValue(u32, 1);
+        const sub_row = row.getRowColumnValue(1);
 
         const expected = error.InvalidSheetType;
         try std.testing.expectError(expected, sub_row);
@@ -177,7 +177,7 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const sub_row = row.getRowColumnValue(u32, 2);
+        const sub_row = row.getRowColumnValue(2);
 
         const expected = error.ColumnTypeMismatch;
         try std.testing.expectError(expected, sub_row);
@@ -189,7 +189,7 @@ test "excel" {
 
         const sheet = try game_data.getSheet("Item");
         const row = try sheet.getRawRow(23992);
-        const sub_row = row.getRowColumnValue(u32, 500);
+        const sub_row = row.getRowColumnValue(500);
 
         const expected = error.InvalidColumnId;
         try std.testing.expectError(expected, sub_row);

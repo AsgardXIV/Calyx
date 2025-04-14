@@ -85,19 +85,6 @@ pub fn rawRowIterator(sheet: *ExcelSheet) RowIterator {
 }
 
 fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRawRow {
-    const data, const row_count = try sliceFromPageAndOffset(page, offset);
-    const fixed_size = sheet.excel_header.header.data_offset;
-
-    return .{
-        .sheet_type = sheet.excel_header.header.sheet_type,
-        .data = data,
-        .row_count = row_count,
-        .fixed_size = fixed_size,
-        .column_definitions = sheet.excel_header.column_definitions,
-    };
-}
-
-fn sliceFromPageAndOffset(page: *ExcelPage, offset: ExcelDataOffset) !struct { []const u8, u16 } {
     var fbs = std.io.fixedBufferStream(page.raw_sheet_data);
 
     const true_offset = offset.offset - page.data_start;
@@ -108,7 +95,11 @@ fn sliceFromPageAndOffset(page: *ExcelPage, offset: ExcelDataOffset) !struct { [
 
     const row_buffer = page.raw_sheet_data[fbs.pos..][0..row_size];
 
-    return .{ row_buffer, row_preamble.row_count };
+    return .{
+        .sheet = sheet,
+        .preamble = row_preamble,
+        .data = row_buffer,
+    };
 }
 
 fn determineRowPageAndOffset(sheet: *ExcelSheet, row_id: u32) !struct { *ExcelPage, ExcelDataOffset } {
