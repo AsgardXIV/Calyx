@@ -12,7 +12,7 @@ const ExcelDataRowPreamble = native_types.ExcelDataRowPreamble;
 const ExcelPageDefinition = native_types.ExcelPageDefinition;
 
 const Pack = @import("../sqpack/Pack.zig");
-const Language = @import("../language.zig").Language;
+const Language = @import("../common/language.zig").Language;
 
 const ExcelSheet = @This();
 

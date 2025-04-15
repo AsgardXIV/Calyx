@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const CategoryId = @import("category_id.zig").CategoryId;
-const Platform = @import("../platform.zig").Platform;
+const Platform = @import("../common/platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const PackFileName = @import("PackFileName.zig");
 

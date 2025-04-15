@@ -6,7 +6,7 @@ const ExcelHeaderHeader = native_types.ExcelHeaderHeader;
 const ExcelColumnDefinition = native_types.ExcelColumnDefinition;
 const ExcelPageDefinition = native_types.ExcelPageDefinition;
 
-const Language = @import("../language.zig").Language;
+const Language = @import("../common/language.zig").Language;
 
 const FixedBufferStream = std.io.FixedBufferStream([]const u8);
 

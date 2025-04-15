@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Language = @import("../language.zig").Language;
+const Language = @import("../common/language.zig").Language;
 const Pack = @import("../sqpack/Pack.zig");
 
 const ExcelList = @import("ExcelList.zig");

@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const Category = @import("Category.zig");
 
-const Platform = @import("../platform.zig").Platform;
+const Platform = @import("../common/platform.zig").Platform;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const CategoryId = @import("category_id.zig").CategoryId;
 const ResolvedGameFile = @import("ResolvedGameFile.zig");

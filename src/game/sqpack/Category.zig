@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 const CategoryId = @import("category_id.zig").CategoryId;
 
 const RepositoryId = @import("repository_id.zig").RepositoryId;
-const Platform = @import("../platform.zig").Platform;
+const Platform = @import("../common/platform.zig").Platform;
 const ParsedGamePath = @import("ParsedGamePath.zig");
 const PackFileName = @import("PackFileName.zig");
 const Chunk = @import("Chunk.zig");

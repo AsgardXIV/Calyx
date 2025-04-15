@@ -13,6 +13,7 @@ build: u16,
 revision: u16,
 valid: bool,
 
+/// Parses a version string in the format "YYYY.MM.DD.BBBB.RRRR"
 pub fn parseFromString(version_str: []const u8) !GameVersion {
     var self: GameVersion = undefined;
 
@@ -41,22 +42,28 @@ pub fn parseFromString(version_str: []const u8) !GameVersion {
     return self;
 }
 
+/// Parses a version string from a file
+/// The file should contain a single line with the version string
 pub fn parseFromFile(file: *const std.fs.File) !GameVersion {
     var version_str: [version_str_len]u8 = undefined;
     _ = try file.readAll(&version_str);
     return try GameVersion.parseFromString(&version_str);
 }
 
+/// Parses a version string from a file path
+/// The file should contain a single line with the version string
 pub fn parseFromFilePath(file_path: []const u8) !GameVersion {
     const file = try std.fs.openFileAbsolute(file_path, .{ .mode = .read_only });
     errdefer file.close();
     return try GameVersion.parseFromFile(&file);
 }
 
+/// Returns the version string
 pub fn versionString(self: *const GameVersion) []const u8 {
     return &self.str;
 }
 
+/// Determines if the current version is newer than the other version
 pub fn isNewerThan(self: GameVersion, other: GameVersion) bool {
     if (self.year > other.year) return true;
     if (self.year < other.year) return false;

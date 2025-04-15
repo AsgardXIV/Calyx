@@ -1,8 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Platform = @import("../platform.zig").Platform;
-const GameVersion = @import("../GameVersion.zig");
+const Platform = @import("../common/platform.zig").Platform;
+const GameVersion = @import("../common/GameVersion.zig");
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 const Category = @import("Category.zig");
 const CategoryId = @import("category_id.zig").CategoryId;

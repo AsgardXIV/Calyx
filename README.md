@@ -27,7 +27,7 @@ Calyx is still very early in development and the API surface is not stable. Cont
 ## Using the Library
 1. Add Calyx to your build.zig.zon
 ```
-zig fetch --save git+https://github.com/AsgardXIV/Calyx.git
+zig fetch --save git+https://github.com/AsgardXIV/Calyx
 ```
 
 2. Add the dependency to your project, for example:

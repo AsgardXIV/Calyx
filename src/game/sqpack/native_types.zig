@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Platform = @import("../platform.zig").Platform;
+const Platform = @import("../common/platform.zig").Platform;
 
 pub const SqPackHeader = extern struct {
     const Self = @This();

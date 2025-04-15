@@ -5,9 +5,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const game = @import("game.zig");
-const GameVersion = game.GameVersion;
-const Language = game.Language;
-const Platform = game.Platform;
+const GameVersion = @import("game/common/GameVersion.zig");
+const Language = @import("game/common/language.zig").Language;
+const Platform = @import("game/common/platform.zig").Platform;
 const Pack = game.sqpack.Pack;
 const ExcelModule = game.excel.ExcelModule;
 const ExcelSheet = game.excel.ExcelSheet;

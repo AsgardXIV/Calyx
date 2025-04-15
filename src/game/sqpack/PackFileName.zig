@@ -4,8 +4,7 @@ const Allocator = std.mem.Allocator;
 const CategoryId = @import("category_id.zig").CategoryId;
 const RepositoryId = @import("repository_id.zig").RepositoryId;
 
-const game = @import("../../game.zig");
-const Platform = game.Platform;
+const Platform = @import("../common/platform.zig").Platform;
 
 const PackFileName = @This();
 
