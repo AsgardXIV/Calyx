@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const ExcelHeader = @import("ExcelHeader.zig");
 const ExcelPage = @import("ExcelPage.zig");
-const ExcelRawRow = @import("ExcelRawRow.zig");
+const ExcelRow = @import("ExcelRow.zig");
 const ExcelModule = @import("ExcelModule.zig");
 
 const native_types = @import("native_types.zig");
@@ -65,11 +65,11 @@ pub fn deinit(sheet: *ExcelSheet) void {
 /// Gets the raw row data for a given `row_id`.
 ///
 /// Both default and subrow sheets are supported.
-/// See `ExcelRawRow` for more details on how to access columns and subrows.
+/// See `ExcelRow` for more details on how to access columns and subrows.
 ///
 /// No heap allocations are performed in this function.
 /// The returned data is valid until the sheet is deinitialized.
-pub fn getRawRow(sheet: *ExcelSheet, row_id: u32) !ExcelRawRow {
+pub fn getRow(sheet: *ExcelSheet, row_id: u32) !ExcelRow {
     // TODO: Do we need an alloc version of this method?
 
     const page, const offset = try sheet.determineRowPageAndOffset(row_id);
@@ -78,7 +78,7 @@ pub fn getRawRow(sheet: *ExcelSheet, row_id: u32) !ExcelRawRow {
 
 /// Gets an iterator for the raw rows in the sheet.
 /// The iterator will iterate over all the rows in the sheet.
-pub fn rawRowIterator(sheet: *ExcelSheet) RowIterator {
+pub fn rowIterator(sheet: *ExcelSheet) RowIterator {
     return .{
         .sheet = sheet,
         .page_index = 0,
@@ -86,7 +86,7 @@ pub fn rawRowIterator(sheet: *ExcelSheet) RowIterator {
     };
 }
 
-fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRawRow {
+fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRow {
     var fbs = std.io.fixedBufferStream(page.raw_sheet_data);
 
     const true_offset = offset.offset - page.data_start;
@@ -236,7 +236,7 @@ const RowIterator = struct {
     page_index: usize,
     row_index: usize,
 
-    pub fn next(self: *@This()) ?ExcelRawRow {
+    pub fn next(self: *@This()) ?ExcelRow {
         const data = self.sheet.getPageData(self.page_index) catch return null;
 
         if (self.row_index >= data.indexes.len) {

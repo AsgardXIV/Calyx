@@ -3,9 +3,9 @@ const std = @import("std");
 const native_types = @import("native_types.zig");
 const ExcelColumnDefinition = native_types.ExcelColumnDefinition;
 const ExcelSheet = @import("ExcelSheet.zig");
-const ExcelRawColumnValue = @import("excel_raw_column_value.zig").ExcelRawColumnValue;
+const ExcelColumnValue = @import("excel_column_value.zig").ExcelColumnValue;
 
-const ExcelRawRow = @This();
+const ExcelRow = @This();
 
 sheet: *ExcelSheet,
 row_id: u32,
@@ -14,7 +14,7 @@ data: []const u8,
 
 /// Gets the value of a column in the row.
 ///
-/// This function is used when the row is of type `ExcelSheetType.default`. See `ExcelRawRow.getSubRowColumnValue` for `ExcelSheetType.sub_rows` sheets.
+/// This function is used when the row is of type `ExcelSheetType.default`. See `ExcelRow.getSubRowColumnValue` for `ExcelSheetType.sub_rows` sheets.
 ///
 /// `T` type must match the column type defined in the header otherwise an error is returned.
 ///
@@ -22,7 +22,7 @@ data: []const u8,
 ///
 /// No heap allocations are performed in this function.
 /// The returned data is valid until the sheet is deinitialized.
-pub fn getRowColumnValue(row: *const ExcelRawRow, column_id: u16) !ExcelRawColumnValue {
+pub fn getRowColumnValue(row: *const ExcelRow, column_id: u16) !ExcelColumnValue {
     if (row.sheet.excel_header.header.sheet_type != .default) {
         return error.InvalidSheetType; // Likely need to use getSubRowColumnValue instead
     }
@@ -38,7 +38,7 @@ pub fn getRowColumnValue(row: *const ExcelRawRow, column_id: u16) !ExcelRawColum
 
 /// Gets the value of a column in a subrow.
 ///
-/// This function is used when the row is of type `ExcelSheetType.sub_rows`. See `ExcelRawRow.getRowColumnValue` for `ExcelSheetType.default` sheets.
+/// This function is used when the row is of type `ExcelSheetType.sub_rows`. See `ExcelRow.getRowColumnValue` for `ExcelSheetType.default` sheets.
 ///
 /// The `T` type must match the column type defined in the header otherwise an error is returned.
 ///
@@ -48,7 +48,7 @@ pub fn getRowColumnValue(row: *const ExcelRawRow, column_id: u16) !ExcelRawColum
 ///
 /// No heap allocations are performed in this function.
 /// The returned data is valid until the sheet is deinitialized.
-pub fn getSubRowColumnValue(row: *const ExcelRawRow, subrow_id: u16, column_id: u16) !ExcelRawColumnValue {
+pub fn getSubRowColumnValue(row: *const ExcelRow, subrow_id: u16, column_id: u16) !ExcelColumnValue {
     if (row.sheet.excel_header.header.sheet_type != .sub_rows) {
         return error.InvalidSheetType; // Likely need to use getSubRowColumnValue instead
     }
@@ -67,7 +67,7 @@ pub fn getSubRowColumnValue(row: *const ExcelRawRow, subrow_id: u16, column_id: 
     return unpackColumn(row, subrow_offset, column_def);
 }
 
-fn unpackColumn(row: *const ExcelRawRow, base_offset: usize, column_def: ExcelColumnDefinition) !ExcelRawColumnValue {
+fn unpackColumn(row: *const ExcelRow, base_offset: usize, column_def: ExcelColumnDefinition) !ExcelColumnValue {
     var buffer = std.io.fixedBufferStream(row.data);
     const reader = buffer.reader();
     buffer.pos = base_offset + column_def.offset;

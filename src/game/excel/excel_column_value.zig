@@ -1,7 +1,7 @@
 const native_types = @import("native_types.zig");
 const ExcelColumnType = native_types.ExcelColumnType;
 
-pub const ExcelRawColumnValue = union(enum) {
+pub const ExcelColumnValue = union(enum) {
     string: []const u8,
 
     bool: bool,

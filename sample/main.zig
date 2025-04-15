@@ -7,10 +7,10 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     const game = try calyx.GameData.init(allocator, .{});
-    try game.pack.loadRepos();
     defer game.deinit();
 
-    const content = try game.getFileContents(allocator, "chara/equipment/e0436/model/c0101e0436_top.mdl");
-    std.log.err("File contents: {d}\n", .{content.len});
-    defer allocator.free(content);
+    const sheet = try game.excel.getSheet("Item");
+    const wind_up_raha = try sheet.getRow(23992);
+    const wind_up_raha_name = try wind_up_raha.getRowColumnValue(9);
+    try std.io.getStdOut().writer().print("Item Name: {s}", .{wind_up_raha_name.string});
 }
