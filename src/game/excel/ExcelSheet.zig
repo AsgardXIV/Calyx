@@ -62,7 +62,9 @@ pub fn deinit(sheet: *ExcelSheet) void {
     sheet.allocator.destroy(sheet);
 }
 
-/// Gets the row data for a given `row_id`.
+/// Gets the row data for a row.
+///
+/// `row_id` is the row id of the row to get.
 ///
 /// Both default and subrow sheets are supported.
 /// See `ExcelRow` for more details on how to access columns and subrows.
@@ -76,8 +78,9 @@ pub fn getRow(sheet: *ExcelSheet, row_id: u32) !ExcelRow {
     return sheet.rawRowFromPageAndOffset(page, offset);
 }
 
-/// Gets the row data for a given absolute `index`.
+/// Gets the row data for a row index.
 ///
+/// `index` is the absolute index of the row to get.
 /// This is a linear index across all pages and is not related to the row_id.
 /// In most cases, you should use `getRow` instead of this function.
 /// For scanning a sheet you should prefer using `rowIterator` as it is significantly more efficient.
@@ -277,6 +280,7 @@ const RowIterator = struct {
     page_index: usize,
     row_index: usize,
 
+    /// Returns the next row in the sheet or null if there are no more rows
     pub fn next(self: *@This()) ?ExcelRow {
         const data = self.sheet.getPageData(self.page_index) catch return null;
 

@@ -1,3 +1,6 @@
+//! `GameData` is the primary entry point for accessing game files and data.
+//! It provides methods to load files, access Excel sheets and more.
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -40,7 +43,8 @@ excel: *ExcelModule,
 /// Basic validation is performed but no game data is loaded.
 ///
 /// `allocator` is the allocator used for memory management.
-/// `options` can be used to specify additional options and customization.
+///
+/// `options` can be used to specify additional options and customization. See `Options` for more details.
 ///
 /// Returns a pointer to the initialized `GameData` instance.
 /// The caller is responsible for freeing the instance using `deinit`.
@@ -116,6 +120,7 @@ pub fn deinit(data: *GameData) void {
 /// Loads the raw file contents for a given path from the pack.
 ///
 /// `allocator` is the allocator used for memory management.
+///
 /// `path` should be a string representing the path to the file.
 ///
 /// Returns the file contents as a byte slice or an error if the file is not found or an error occurs.
@@ -126,7 +131,7 @@ pub fn getFileContents(data: *GameData, allocator: Allocator, path: []const u8) 
 
 /// Loads a file from the pack and deserializes it into the given type.
 ///
-/// The type `FileType` must implement the following methods:
+/// `FileType` must implement the following methods:
 /// - `pub fn init(allocator: Allocator, stream: *std.io.FixedBufferStream([]const u8)) !*FileType`
 /// - `pub fn deinit(self: *FileType) void`
 ///
@@ -134,12 +139,16 @@ pub fn getFileContents(data: *GameData, allocator: Allocator, path: []const u8) 
 /// The instance must not access the stream after initialization.
 /// deinit must free the instance using the allocator provided in init.
 ///
+/// `path` should be a string representing the path to the file.
+///
 /// The caller owns the returned instance must free it using `FileType.deinit`.
 pub fn getTypedFile(data: *GameData, allocator: Allocator, comptime FileType: type, path: []const u8) !*FileType {
     return data.pack.getTypedFile(allocator, FileType, path);
 }
 
 /// Get an excel sheet by its name.
+///
+/// `sheet_name` is the case-insensitive name of the sheet to get.
 ///
 /// If the sheet is already cached, it will return the cached version.
 /// If the sheet is not cached, it will load it and return it.

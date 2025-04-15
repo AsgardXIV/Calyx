@@ -16,8 +16,6 @@ data: []const u8,
 ///
 /// This function is used when the row is of type `ExcelSheetType.default`. See `ExcelRow.getSubRowColumnValue` for `ExcelSheetType.sub_rows` sheets.
 ///
-/// `T` type must match the column type defined in the header otherwise an error is returned.
-///
 /// `column_id` is the index of the column in the header. An error is returned if if is out of bounds.
 ///
 /// No heap allocations are performed in this function.
@@ -39,8 +37,6 @@ pub fn getRowColumnValue(row: *const ExcelRow, column_id: u16) !ExcelColumnValue
 /// Gets the value of a column in a subrow.
 ///
 /// This function is used when the row is of type `ExcelSheetType.sub_rows`. See `ExcelRow.getRowColumnValue` for `ExcelSheetType.default` sheets.
-///
-/// The `T` type must match the column type defined in the header otherwise an error is returned.
 ///
 /// `subrow_id` is the index of the subrow in the row. An error is returned if it is out of bounds.
 ///
