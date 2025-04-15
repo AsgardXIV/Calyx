@@ -44,19 +44,22 @@ pub fn init(allocator: Allocator, module: *ExcelModule, sheet_name: []const u8, 
         .pages = undefined,
     };
 
+    // Load the excel header
     try sheet.loadExcelHeader();
     errdefer sheet.excel_header.deinit();
 
+    // Determine the actual language to use
     try sheet.determineLanguage(preferred_language);
 
-    try sheet.allocatepages();
-    errdefer sheet.cleanuppages();
+    // Allocate the pages array
+    try sheet.allocatePages();
+    errdefer sheet.cleanupPages();
 
     return sheet;
 }
 
 pub fn deinit(sheet: *ExcelSheet) void {
-    sheet.cleanuppages();
+    sheet.cleanupPages();
     sheet.excel_header.deinit();
     sheet.allocator.free(sheet.sheet_name);
     sheet.allocator.destroy(sheet);
@@ -217,26 +220,6 @@ fn loadPageData(sheet: *ExcelSheet, start_row_id: u32) !*ExcelPage {
     return data;
 }
 
-fn allocatepages(sheet: *ExcelSheet) !void {
-    const num_pages = sheet.excel_header.page_definitions.len;
-    sheet.pages = try sheet.allocator.alloc(?*ExcelPage, num_pages);
-    errdefer sheet.allocator.free(sheet.pages);
-
-    for (sheet.pages) |*data| {
-        data.* = null;
-    }
-}
-
-fn cleanuppages(sheet: *ExcelSheet) void {
-    for (sheet.pages) |*data| {
-        if (data.*) |d| {
-            d.deinit();
-        }
-        data.* = null;
-    }
-    sheet.allocator.free(sheet.pages);
-}
-
 fn loadExcelHeader(sheet: *ExcelSheet) !void {
     var sfb = std.heap.stackFallback(1024, sheet.allocator);
     const sfa = sfb.get();
@@ -275,7 +258,27 @@ fn determineLanguage(sheet: *ExcelSheet, preferred_language: Language) !void {
     return error.LanguageNotFound;
 }
 
-const RowIterator = struct {
+fn allocatePages(sheet: *ExcelSheet) !void {
+    const num_pages = sheet.excel_header.page_definitions.len;
+    sheet.pages = try sheet.allocator.alloc(?*ExcelPage, num_pages);
+    errdefer sheet.allocator.free(sheet.pages);
+
+    for (sheet.pages) |*data| {
+        data.* = null;
+    }
+}
+
+fn cleanupPages(sheet: *ExcelSheet) void {
+    for (sheet.pages) |*data| {
+        if (data.*) |d| {
+            d.deinit();
+        }
+        data.* = null;
+    }
+    sheet.allocator.free(sheet.pages);
+}
+
+pub const RowIterator = struct {
     sheet: *ExcelSheet,
     page_index: usize,
     row_index: usize,
