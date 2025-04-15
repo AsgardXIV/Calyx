@@ -1,5 +1,6 @@
 const std = @import("std");
 
+/// Determines the maximum value of an enum type.
 pub fn maxEnumValue(comptime E: type) usize {
     var max: usize = 0;
     for (std.meta.fields(E)) |field| {

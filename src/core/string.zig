@@ -1,9 +1,17 @@
 const std = @import("std");
 
+/// Determines the number of bytes needed to represent a UTF-8 character given its first byte.
+///
+/// `char` is the first byte of the UTF-8 character.
+///
+/// Returns the number of bytes needed to represent the character or 1 if the character is not valid UTF-8.
 pub fn getUtf8ByteSize(char: u8) u3 {
     return std.unicode.utf8ByteSequenceLength(char) catch 1;
 }
 
+/// Converts `str` to lowercase in place.
+///
+/// Only ASCII characters are converted to lowercase.
 pub fn toLowerCase(str: []u8) void {
     var i: usize = 0;
     while (i < str.len) {
@@ -13,12 +21,21 @@ pub fn toLowerCase(str: []u8) void {
     }
 }
 
+/// Allocates a new string and converts `str` to lowercase.
+///
+/// Only ASCII characters are converted to lowercase.
+///
+/// The new string is allocated using the provided allocator.
+/// The caller is responsible for freeing the returned string.
 pub fn allocToLowerCase(allocator: std.mem.Allocator, str: []const u8) ![]const u8 {
     const result = try allocator.dupe(u8, str);
     toLowerCase(result);
     return result;
 }
 
+/// Converts `str` to uppercase in place.
+///
+/// Only ASCII characters are converted to uppercase.
 pub fn toUpperCase(str: []u8) void {
     var i: usize = 0;
     while (i < str.len) {
@@ -28,6 +45,12 @@ pub fn toUpperCase(str: []u8) void {
     }
 }
 
+/// Allocates a new string and converts `str` to uppercase.
+///
+/// Only ASCII characters are converted to uppercase.
+///
+/// The new string is allocated using the provided allocator.
+/// The caller is responsible for freeing the returned string.
 pub fn allocToUpperCase(allocator: std.mem.Allocator, str: []const u8) ![]const u8 {
     const result = try allocator.dupe(u8, str);
     toUpperCase(result);
