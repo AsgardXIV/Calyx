@@ -14,9 +14,8 @@ concurrency:
 
 jobs:
   build:
-    name: Build docs website
+    name: Build docs
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
@@ -28,6 +27,7 @@ jobs:
           path: "zig-out/docs/"
 
   deploy:
+    name: Deploy docs
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
