@@ -19,7 +19,42 @@ Calyx is still very early in development and the API surface is not stable. Cont
   * Load sheets
   * Retrieve or iterate rows
   * Retrieve column data
- 
+
+## Using the Library
+1. Add Calyx to your build.zig.zon
+```
+zig fetch --save git+https://github.com/AsgardXIV/Calyx.git
+```
+
+2. Add the dependency to your project, for example:
+```
+const calyx_dependency = b.dependency("calyx", .{
+  .target = target,
+  .optimize = optimize,
+});
+
+exe_mod.addImport("calyx", calyx_dependency.module("calyx"));
+```
+
+3. Use the library
+```
+const calyx = @import("calyx");
+const game = try calyx.GameData.init(allocator, .{});
+defer game.deinit();
+const sheet = try game.excel.getSheet("Item");
+const wind_up_raha = try sheet.getRow(23992);
+const wind_up_raha_name = try wind_up_raha.getRowColumnValue(9);
+try std.io.getStdOut().writer().print("Item Name: {s}", .{wind_up_raha_name.string});
+```
+
+## Developing Locally
+Some development requires a locally installed copy of FFXIV. You should set the `FFXIV_GAME_PATH` environment variable so Calyx can discover the location.
+
+1. Running the sample: `zig build sample`
+2. Running the unit tests: `zig build test`
+3. Running the integration tests: `zig build integrationTest`
+4. Generating the docs: `zig build run docs`
+
 ## Alternativies
 Not using Zig?
 * C#
