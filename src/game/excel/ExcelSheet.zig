@@ -76,8 +76,34 @@ pub fn getRow(sheet: *ExcelSheet, row_id: u32) !ExcelRow {
     return sheet.rawRowFromPageAndOffset(page, offset);
 }
 
+/// Gets the row data for a given absolute `index`.
+///
+/// This is a linear index across all pages and is not related to the row_id.
+/// In most cases, you should use `getRow` instead of this function.
+/// For scanning a sheet you should prefer using `rowIterator` as it is significantly more efficient.
+///
+/// No heap allocations are performed in this function.
+/// The returned data is valid until the sheet is deinitialized.
+pub fn getRowAtIndex(sheet: *ExcelSheet, index: usize) !ExcelRow {
+    var index_total: usize = 0;
+    for (sheet.excel_header.page_definitions, 0..) |page_def, i| {
+        const page_end = index_total + page_def.row_count;
+        if (index < page_end) {
+            const page = try sheet.getPageData(i);
+            const page_row_index = index - index_total;
+            return sheet.rawRowFromPageAndOffset(page, page.indexes[page_row_index]);
+        }
+        index_total = page_end;
+    }
+
+    return error.RowNotFound;
+}
+
 /// Gets an iterator for the rows in the sheet.
 /// The iterator will iterate over all the rows in the sheet.
+///
+/// No heap allocations are performed in this function.
+/// The returned iterator is valid until the sheet is deinitialized or the iterator is used.
 pub fn rowIterator(sheet: *ExcelSheet) RowIterator {
     return .{
         .sheet = sheet,
@@ -88,6 +114,11 @@ pub fn rowIterator(sheet: *ExcelSheet) RowIterator {
 
 /// Gets the number of rows in the sheet.
 /// This includes all pages but does not include subrows.
+///
+/// Because rows can be missing, you should not call `getRow` based on this value.
+/// Instead use `getRowAtIndex` or `rowIterator`.
+///
+/// No heap allocations are performed in this function.
 pub fn getRowCount(sheet: *ExcelSheet) usize {
     var count: usize = 0;
     for (sheet.excel_header.page_definitions) |page| {

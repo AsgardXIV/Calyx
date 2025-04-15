@@ -99,6 +99,20 @@ test "excel" {
         try std.testing.expectEqual(8, counter);
     }
 
+    // Index default
+    {
+        std.log.info("Testing index default", .{});
+
+        const sheet = try game_data.getSheet("Item");
+        const count = sheet.getRowCount();
+
+        for (0..count) |i| {
+            const row = try sheet.getRowAtIndex(i);
+            const id = try row.getRowColumnValue(0);
+            _ = id;
+        }
+    }
+
     // Basic sub row integer
     {
         std.log.info("Testing sub row integer", .{});
