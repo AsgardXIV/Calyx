@@ -67,7 +67,7 @@ Some development requires a locally installed copy of FFXIV. You should set the 
 3. Running the integration tests: `zig build integrationTest`
 4. Generating the docs: `zig build docs`
 
-## Alternativies
+## Alternatives
 Not using Zig?
 * C#
   * [Lumina](https://github.com/NotAdam/Lumina)
