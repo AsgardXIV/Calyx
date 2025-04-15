@@ -62,7 +62,7 @@ pub fn deinit(sheet: *ExcelSheet) void {
     sheet.allocator.destroy(sheet);
 }
 
-/// Gets the raw row data for a given `row_id`.
+/// Gets the row data for a given `row_id`.
 ///
 /// Both default and subrow sheets are supported.
 /// See `ExcelRow` for more details on how to access columns and subrows.
@@ -76,7 +76,7 @@ pub fn getRow(sheet: *ExcelSheet, row_id: u32) !ExcelRow {
     return sheet.rawRowFromPageAndOffset(page, offset);
 }
 
-/// Gets an iterator for the raw rows in the sheet.
+/// Gets an iterator for the rows in the sheet.
 /// The iterator will iterate over all the rows in the sheet.
 pub fn rowIterator(sheet: *ExcelSheet) RowIterator {
     return .{
@@ -84,6 +84,16 @@ pub fn rowIterator(sheet: *ExcelSheet) RowIterator {
         .page_index = 0,
         .row_index = 0,
     };
+}
+
+/// Gets the number of rows in the sheet.
+/// This includes all pages but does not include subrows.
+pub fn getRowCount(sheet: *ExcelSheet) usize {
+    var count: usize = 0;
+    for (sheet.excel_header.page_definitions) |page| {
+        count += page.row_count;
+    }
+    return count;
 }
 
 fn rawRowFromPageAndOffset(sheet: *ExcelSheet, page: *ExcelPage, offset: ExcelDataOffset) !ExcelRow {

@@ -73,6 +73,16 @@ test "excel" {
         try std.testing.expectEqualStrings(expected, val.string);
     }
 
+    // Count default
+    {
+        std.log.info("Testing count default", .{});
+
+        const sheet = try game_data.getSheet("BuddyAction");
+        const count = sheet.getRowCount();
+
+        try std.testing.expectEqual(8, count);
+    }
+
     // Iterate default
     {
         std.log.info("Testing iterate default", .{});
