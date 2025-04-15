@@ -83,14 +83,13 @@ pub fn loadRepos(pack: *Pack) !void {
     var folder = std.fs.openDirAbsolute(pack.pack_path, .{ .iterate = true, .access_sub_paths = false, .no_follow = true }) catch {
         return error.InvalidPackFolder;
     };
-    errdefer folder.close();
+    defer folder.close();
 
-    var walker = try folder.walk(sfa);
-    errdefer walker.deinit();
-    while (try walker.next()) |entry| {
+    var iter = folder.iterate();
+    while (try iter.next()) |entry| {
         if (entry.kind != std.fs.Dir.Entry.Kind.directory) continue;
 
-        const repo_name = entry.basename;
+        const repo_name = entry.name;
         const repo_id = try RepositoryId.fromRepositoryString(repo_name, false);
         const repo_int = repo_id.toIntId();
 
@@ -98,8 +97,6 @@ pub fn loadRepos(pack: *Pack) !void {
             max_seen = repo_int;
         }
     }
-    walker.deinit();
-    folder.close();
 
     if (max_seen < 0) {
         return error.InvalidPackFolder;
