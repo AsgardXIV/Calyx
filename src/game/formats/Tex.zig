@@ -7,6 +7,7 @@ const Tex = @This();
 
 allocator: Allocator,
 header: TexHeader,
+raw_data: []const u8,
 
 pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*Tex {
     const tex = try allocator.create(Tex);
@@ -15,6 +16,7 @@ pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*Tex {
     tex.* = .{
         .allocator = allocator,
         .header = undefined,
+        .raw_data = undefined,
     };
 
     try tex.populate(fbs);
@@ -23,6 +25,7 @@ pub fn init(allocator: Allocator, fbs: *FixedBufferStream) !*Tex {
 }
 
 pub fn deinit(tex: *Tex) void {
+    tex.allocator.free(tex.raw_data);
     tex.allocator.destroy(tex);
 }
 
@@ -31,6 +34,9 @@ fn populate(tex: *Tex, fbs: *FixedBufferStream) !void {
 
     // Read the header
     tex.header = try reader.readStruct(TexHeader);
+
+    // Read the raw data
+    tex.raw_data = try tex.allocator.dupe(u8, fbs.buffer[fbs.pos..]);
 }
 
 pub const TexHeader = extern struct {
