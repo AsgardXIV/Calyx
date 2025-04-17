@@ -92,6 +92,7 @@ pub const TextureAttribute = enum(u32) {
                 return false;
             }
         }
+        return true;
     }
 
     pub fn hasAnyFlag(self: TextureAttribute, flag: []TextureAttribute) bool {
