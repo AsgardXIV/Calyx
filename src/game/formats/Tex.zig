@@ -40,7 +40,8 @@ pub const TexHeader = extern struct {
     width: u16 align(1),
     height: u16 align(1),
     depth: u16 align(1),
-    mip_count: u16 align(1),
+    mip_count: u8 align(1),
+    array_size: u8 align(1),
 
     lod_offsets: [3]u32 align(1),
     offset_to_surface: [13]u32 align(1),
