@@ -42,7 +42,7 @@ pub fn init(
         .repo_version = default_version,
         .repo_id = repo_id,
         .repo_path = cloned_repo_path,
-        .categories = [_]?*Category{null} ** (max_category_id + 1),
+        .categories = @splat(null),
     };
 
     // Setup the version
