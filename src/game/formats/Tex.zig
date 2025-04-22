@@ -81,28 +81,6 @@ pub const TextureAttribute = enum(u32) {
     texture_no_swizzle = 0x80000000,
 
     _,
-
-    pub fn hasFlag(self: TextureAttribute, flag: TextureAttribute) bool {
-        return (@intFromEnum(self) & @intFromEnum(flag)) != 0;
-    }
-
-    pub fn hasAllFlags(self: TextureAttribute, flag: []TextureAttribute) bool {
-        for (flag) |f| {
-            if (!self.hasFlag(f)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    pub fn hasAnyFlag(self: TextureAttribute, flag: []TextureAttribute) bool {
-        for (flag) |f| {
-            if (self.hasFlag(f)) {
-                return true;
-            }
-        }
-        return false;
-    }
 };
 
 pub const TextureFormat = enum(u32) {

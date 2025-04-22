@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const calyx = @import("calyx");
+const meta = calyx.core.meta;
 
 const Tex = calyx.game.formats.Tex;
 
@@ -17,7 +18,7 @@ test "tex header" {
         try std.testing.expectEqual(.bc1, tex_file.header.format);
         try std.testing.expectEqual(512, tex_file.header.width);
         try std.testing.expectEqual(1024, tex_file.header.height);
-        try std.testing.expect(tex_file.header.attributes.hasFlag(.texture_type_2d));
+        try std.testing.expect(meta.enumHasFlag(tex_file.header.attributes, .texture_type_2d));
     }
 
     {
@@ -27,7 +28,7 @@ test "tex header" {
         try std.testing.expectEqual(.bc5, tex_file.header.format);
         try std.testing.expectEqual(512, tex_file.header.width);
         try std.testing.expectEqual(1024, tex_file.header.height);
-        try std.testing.expect(tex_file.header.attributes.hasFlag(.texture_type_2d));
+        try std.testing.expect(meta.enumHasFlag(tex_file.header.attributes, .texture_type_2d));
     }
 
     {
@@ -37,7 +38,7 @@ test "tex header" {
         try std.testing.expectEqual(.b5g5r5a1, tex_file.header.format);
         try std.testing.expectEqual(80, tex_file.header.width);
         try std.testing.expectEqual(80, tex_file.header.height);
-        try std.testing.expect(tex_file.header.attributes.hasFlag(.texture_type_2d));
+        try std.testing.expect(meta.enumHasFlag(tex_file.header.attributes, .texture_type_2d));
     }
 
     {
@@ -47,7 +48,7 @@ test "tex header" {
         try std.testing.expectEqual(.b8g8r8a8, tex_file.header.format);
         try std.testing.expectEqual(64, tex_file.header.width);
         try std.testing.expectEqual(64, tex_file.header.height);
-        try std.testing.expect(tex_file.header.attributes.hasFlag(.texture_type_2d));
+        try std.testing.expect(meta.enumHasFlag(tex_file.header.attributes, .texture_type_2d));
     }
 
     {
@@ -57,6 +58,6 @@ test "tex header" {
         try std.testing.expectEqual(.b4g4r4a4, tex_file.header.format);
         try std.testing.expectEqual(48, tex_file.header.width);
         try std.testing.expectEqual(64, tex_file.header.height);
-        try std.testing.expect(tex_file.header.attributes.hasFlag(.texture_type_2d));
+        try std.testing.expect(meta.enumHasFlag(tex_file.header.attributes, .texture_type_2d));
     }
 }
