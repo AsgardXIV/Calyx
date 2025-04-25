@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
 
     // Calyx Module
     const calyx_mod = b.addModule("calyx", .{
-        .root_source_file = b.path("src/calyx.zig"),
+        .root_source_file = b.path("src/calyx/calyx.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     // Calyx Integration Tests
     if (build_integration_tests) {
         const calyx_integration_tests_mod = b.createModule(.{
-            .root_source_file = b.path("test/tests.zig"),
+            .root_source_file = b.path("src/test/tests.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{
@@ -81,7 +81,7 @@ pub fn build(b: *std.Build) void {
     // Calyx Sample
     if (build_sample) {
         const calyx_sample_exe_mod = b.createModule(.{
-            .root_source_file = b.path("sample/main.zig"),
+            .root_source_file = b.path("src/sample/main.zig"),
             .target = target,
             .optimize = optimize,
             .imports = &.{

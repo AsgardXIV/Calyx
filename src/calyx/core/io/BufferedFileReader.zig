@@ -62,7 +62,7 @@ pub fn reader(self: *Self) Reader {
 }
 
 test "basic file read first byte" {
-    const file = try std.fs.cwd().openFile("test/assets/basic_file.txt", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("src/test/assets/basic_file.txt", .{ .mode = .read_only });
     var buffer = Self.initFromFile(file);
     const rdr = buffer.reader();
     const first_byte = try rdr.readByte();
@@ -70,7 +70,7 @@ test "basic file read first byte" {
 }
 
 test "basic file seek" {
-    const file = try std.fs.cwd().openFile("test/assets/basic_file.txt", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("src/test/assets/basic_file.txt", .{ .mode = .read_only });
     var buffer = Self.initFromFile(file);
     const rdr = buffer.reader();
 
@@ -88,7 +88,7 @@ test "basic file seek" {
 }
 
 test "basic file pos" {
-    const file = try std.fs.cwd().openFile("test/assets/basic_file.txt", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("src/test/assets/basic_file.txt", .{ .mode = .read_only });
     var buffer = Self.initFromFile(file);
     const skip_bytes = 4;
     const rdr = buffer.reader();
@@ -98,13 +98,13 @@ test "basic file pos" {
 }
 
 test "basic file endPos" {
-    const file = try std.fs.cwd().openFile("test/assets/basic_file.txt", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("src/test/assets/basic_file.txt", .{ .mode = .read_only });
     var buffer = Self.initFromFile(file);
     try std.testing.expectEqual(buffer.getEndPos(), 13);
 }
 
 test "basic file remaining" {
-    const file = try std.fs.cwd().openFile("test/assets/basic_file.txt", .{ .mode = .read_only });
+    const file = try std.fs.cwd().openFile("src/test/assets/basic_file.txt", .{ .mode = .read_only });
     var buffer = Self.initFromFile(file);
     const skip_bytes = 4;
     const rdr = buffer.reader();
