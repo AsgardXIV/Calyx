@@ -133,20 +133,6 @@ pub fn calculateSliceByteSize(tex: *Tex, mip_level: u32) !u32 {
     return total_bytes;
 }
 
-pub const TexHeader = extern struct {
-    attributes: TextureAttribute align(1),
-    format: TextureFormat align(1),
-
-    width: u16 align(1),
-    height: u16 align(1),
-    depth: u16 align(1),
-    mip_field: u8 align(1),
-    array_size: u8 align(1),
-
-    lod_offsets: [3]u32 align(1),
-    offset_to_surface: [13]u32 align(1),
-};
-
 pub const TextureAttribute = enum(u32) {
     discard_per_frame = 0x1,
     discard_per_map = 0x2,
@@ -220,4 +206,18 @@ pub const TextureFormat = enum(u32) {
         const raw_result = std.math.shr(u32, raw_value & type_mask, type_shift);
         return @enumFromInt(raw_result);
     }
+};
+
+const TexHeader = extern struct {
+    attributes: TextureAttribute align(1),
+    format: TextureFormat align(1),
+
+    width: u16 align(1),
+    height: u16 align(1),
+    depth: u16 align(1),
+    mip_field: u8 align(1),
+    array_size: u8 align(1),
+
+    lod_offsets: [3]u32 align(1),
+    offset_to_surface: [13]u32 align(1),
 };
